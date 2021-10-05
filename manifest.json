@@ -1,0 +1,16 @@
+{
+  "name": "Local Video Player",
+  "short_name": "LVP",
+  "start_url": "LocalVideoPlayer.html",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "LVP.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#33ccaa",
+  "background_color": "#333",
+  "display": "standalone"
+}
