@@ -35,6 +35,7 @@ function initialize_all() {
 
     setApplicationTitle("");
 
+    videoPlay.style.objectFit = 'contain';
     videoPlay.addEventListener('ended', function(e) {
         if (play_next(1) < 0)
             showVideoPane(false);
