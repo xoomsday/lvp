@@ -257,7 +257,7 @@ function showVideoPane(please) {
     }
 }
 
-function play_through(at) {
+function play_through(at, start_paused) {
     if (at < 0)
         at = find_next(0);
     if (at < 0)
@@ -275,7 +275,8 @@ function play_through(at) {
     playListPane.style.display = "none";
     videoPane.style.display = "block";
     setVideoPlaySize();
-    videoPlay.play();
+    if (!start_paused)
+	videoPlay.play();
     show_info();
 }
 
@@ -428,8 +429,8 @@ function playListKey(e) {
         break;
     case 'v':
         if (find_next(0) < 0 || !videoPlay.myPlaying)
-            play_through(-1);
-        else
+            play_through(-1, 1);
+	else
             showVideoPane(true);
         break;
     }
