@@ -1,4 +1,4 @@
-var CACHE = 'lvp-cache-0';
+var CACHE = 'lvp-cache-1';
 
 self.addEventListener('install', event => {
     event.waitUntil(precache());
@@ -13,6 +13,8 @@ function precache() {
     return caches.open(CACHE).then(cache => {
 	return cache.addAll([
             "./LocalVideoPlayer.html",
+            "./lvp.css",
+            "./lvp.js",
             "./sw.js",
             "./LVP.png",
             "./manifest.json",
