@@ -52,14 +52,8 @@ function initialize_all() {
         videoPlayKey(e);
     });
 
-    videoPlay.addEventListener('timeupdate', function(e) {
-        if (videoPlay.readyState < 4) {
-            timeLabel.textContent = '';
-        } else {
-            var current = toHHMMSS(videoPlay.currentTime);
-            var total = toHHMMSS(videoPlay.duration);
-            timeLabel.textContent = `${current} / ${total}`;
-        }
+    videoPlay.addEventListener('timeupdate', e => {
+        timeupdate();
     });
 
     videoPlay.addEventListener('loadedmetadata', function(e) {
@@ -277,7 +271,7 @@ function play_through(at, start_paused) {
     videoPane.style.display = "block";
     setVideoPlaySize();
     if (!start_paused)
-	videoPlay.play();
+        videoPlay.play();
     show_info();
 }
 
@@ -400,6 +394,19 @@ function toHHMMSS (sec_num) {
     return hours+':'+minutes+':'+seconds;
 }
 
+function timeupdate() {
+    if (videoPlay.readyState < 4) {
+        timeLabel.textContent = '';
+    } else {
+        var current = toHHMMSS(videoPlay.currentTime);
+        var total = toHHMMSS(videoPlay.duration);
+        var remaining = ((videoPlay.duration - videoPlay.currentTime) /
+                         videoPlay.playbackRate);
+        remaining = toHHMMSS(remaining);
+        timeLabel.textContent = `${current} / ${total} (${remaining})`;
+    }
+}
+
 function toggleAspect() {
     /* C -> F -> N -> C -> F -> ... */
     if (videoPlay.style.objectFit == 'contain')
@@ -431,7 +438,7 @@ function playListKey(e) {
     case 'v':
         if (find_next(0) < 0 || !videoPlay.myPlaying)
             play_through(-1, 1);
-	else
+        else
             showVideoPane(true);
         break;
     }
