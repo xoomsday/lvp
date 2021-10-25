@@ -344,15 +344,31 @@ function showTime() {
     show_briefly(timeLabel, 5000);
 }
 
+function ratio_string(a, b) {
+    var x = a;
+    var y = b;
+    while (b) {
+        var t = b;
+        b = a % b;
+        a = t;
+    }
+    x = x / a;
+    y = y / a;
+    return `${x}:${y}`;
+}
+
 function setAspectSizeInfo() {
+    var ratio = ratio_string(videoPlay.videoWidth, videoPlay.videoHeight);
+
     if (videoPlay.style.objectFit == 'contain')
         aspectLabel.textContent = 'contain (aspect)';
     else if (videoPlay.style.objectFit == 'none')
         aspectLabel.textContent = 'none (1-to-1)';
     else
         aspectLabel.textContent = 'fill (stretch)';
+
     sizeLabel.textContent =
-        `${videoPlay.videoWidth} × ${videoPlay.videoHeight}`;
+        `${videoPlay.videoWidth} × ${videoPlay.videoHeight} (${ratio})`;
 }
 
 function showAspect() {
