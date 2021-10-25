@@ -249,6 +249,9 @@ function showVideoPane(please) {
         playListPane.style.display = "block";
         videoPane.style.display = "none";
         playListPane.focus();
+
+        if (document.fullscreenElement)
+            document.exitFullscreen();
     }
 }
 
