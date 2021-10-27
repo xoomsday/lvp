@@ -71,6 +71,19 @@ function initialize_all() {
     showVideoPane(false);
 }
 
+function pretty_filesize(size) {
+    const kilo = 1024;
+    var scale = 1;
+    var unit = ['bytes', 'KB', 'MB', 'GB'];
+
+    while (1 < unit.length && scale * kilo < size) {
+        scale = scale * kilo;
+        unit.shift();
+    }
+    size = Number.parseFloat(size / scale).toFixed(2);
+    return `${size}${unit[0]}`
+}
+
 function add_to_playlist(file) {
     var d = document.createElement('div');
     playList.appendChild(d);
@@ -89,8 +102,10 @@ function add_to_playlist(file) {
     });
 
     var name = document.createElement('div');
+    var filename = pretty_filename(file.name);
+    var filesize = pretty_filesize(file.size);
     name.setAttribute("class", "filename");
-    name.textContent = pretty_filename(file.name);
+    name.textContent = `${filename} (${filesize})`;
 
     d.appendChild(selected);
     d.appendChild(playing);
