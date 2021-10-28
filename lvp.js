@@ -322,11 +322,13 @@ function setPlaying(d) {
 function show_hidden(where, clearTime) {
     if (clearTime < where.myClearTime)
         return;
-    where.style.visibility = "hidden";
+    for (var e of document.getElementsByClassName("labelstring"))
+        e.style.visibility = "hidden";
 }
 
 function show_briefly(where, timeout) {
-    where.style.visibility = "visible";
+    for (var e of document.getElementsByClassName("labelstring"))
+        e.style.visibility = "visible";
     where.myClearTime = Date.now() + timeout;
     setTimeout(show_hidden, timeout, where, where.myClearTime);
 }
