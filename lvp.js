@@ -380,12 +380,32 @@ function ratio_string(a, b) {
 function setAspectSizeInfo() {
     var ratio = ratio_string(videoPlay.videoWidth, videoPlay.videoHeight);
 
-    if (videoPlay.style.objectFit == 'contain')
-        aspectLabel.textContent = 'contain (aspect)';
-    else if (videoPlay.style.objectFit == 'none')
+    if (videoPlay.style.objectFit == 'contain') {
+        var w = videoPlay.width;
+        var h = videoPlay.height;
+        var W = videoPlay.videoWidth;
+        var H = videoPlay.videoHeight;
+
+        if (w * H < W * h) {
+            /* 
+             * That is, "w / h < W / H", meaning that the container
+             * width is narrower than it needs to be to show the video
+             * at the full height.  We'd be using full container width
+             * but not full height.
+             */
+            h = Math.round(w * H / W);
+        } else {
+            /* The other way around */
+            w = Math.round(h * W / H);
+        }
+        aspectLabel.textContent = `contain (aspect) ${w} × ${h}`;
+    } else if (videoPlay.style.objectFit == 'none') {
         aspectLabel.textContent = 'none (1-to-1)';
-    else
-        aspectLabel.textContent = 'fill (stretch)';
+    } else {
+        var w = videoPlay.width;
+        var h = videoPlay.height;
+        aspectLabel.textContent = `fill (stretch) ${w} × ${h}`;
+    }
 
     sizeLabel.textContent =
         `${videoPlay.videoWidth} × ${videoPlay.videoHeight} (${ratio})`;
