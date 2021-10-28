@@ -341,6 +341,8 @@ function setVideoPlaySize() {
     var height = window.innerHeight;
     videoPlay.width = width;
     videoPlay.height = height;
+
+    setAspectSizeInfo();
 }
 
 function showPlaybackRate() {
