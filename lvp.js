@@ -530,6 +530,9 @@ function videoPlayKey(e) {
     case 'n':
         play_next(1);
         break;
+    case 'o':
+        fileInput.click();
+        break;
     case 'p':
         play_next(-1);
         break;
