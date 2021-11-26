@@ -48,7 +48,7 @@ function initialize_all() {
         adjust_tool_visibility();
     });
 
-    videoPlay.addEventListener('keypress', function(e) {
+    videoPlay.addEventListener('keydown', function(e) {
         videoPlayKey(e);
     });
 
@@ -60,7 +60,7 @@ function initialize_all() {
         setAspectSizeInfo();
     });
 
-    playListPane.addEventListener('keypress', function(e) {
+    playListPane.addEventListener('keydown', function(e) {
         playListKey(e);
     });
 
