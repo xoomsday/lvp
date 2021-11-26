@@ -551,6 +551,9 @@ function videoPlayKey(e) {
     case 'q':
         videoPlay.pause();
         showVideoPane(false);
+        setApplicationTitle("");
+        break;
+    default:
         break;
     }
 }
