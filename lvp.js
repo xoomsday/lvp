@@ -562,10 +562,20 @@ function videoPlayKey(e) {
         showPlaybackRate();
         break;
     case '>':
-        videoPlay.currentTime += 15;
+        if (e.ctrlKey)
+            videoPlay.currentTime += 60;
+        else
+            videoPlay.currentTime += 15;
+        e.preventDefault();
+        e.stopImmediatePropagation();
         break;
     case '<':
-        videoPlay.currentTime -= 5;
+        if (e.ctrlKey)
+            videoPlay.currentTime -= 60;
+        else
+            videoPlay.currentTime -= 5;
+        e.preventDefault();
+        e.stopImmediatePropagation();
         break;
     case 'a':
         toggleAspect();
