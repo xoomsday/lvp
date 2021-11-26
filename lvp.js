@@ -518,6 +518,12 @@ function videoPlayKey(e) {
             videoPlay.playbackRate += 0.1;
         showPlaybackRate();
         break;
+    case '>':
+        videoPlay.currentTime += 15;
+        break;
+    case '<':
+        videoPlay.currentTime -= 5;
+        break;
     case 'a':
         toggleAspect();
         break;
