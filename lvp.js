@@ -319,16 +319,24 @@ function setPlaying(d) {
     }
 }
 
-function show_hidden(where, clearTime) {
-    if (clearTime < where.myClearTime)
-        return;
+function unshow_all() {
     for (var e of document.getElementsByClassName("labelstring"))
         e.style.visibility = "hidden";
 }
 
-function show_briefly(where, timeout) {
+function show_all() {
     for (var e of document.getElementsByClassName("labelstring"))
         e.style.visibility = "visible";
+}
+
+function show_hidden(where, clearTime) {
+    if (clearTime < where.myClearTime)
+        return;
+    unshow_all();
+}
+
+function show_briefly(where, timeout) {
+    show_all();
     where.myClearTime = Date.now() + timeout;
     setTimeout(show_hidden, timeout, where, where.myClearTime);
 }
@@ -453,6 +461,18 @@ function show_info() {
     showSize();
 }
 
+function toggle_info() {
+    showing = false;
+    for (var e of document.getElementsByClassName("labelstring"))
+        if (e.style.visibility == "visible")
+            showing = true;
+    if (showing)
+        unshow_all();
+    else {
+        show_all();
+    }
+}
+
 function toggleFullScreenVideo() {
     videoPane.requestFullscreen().then(setVideoPlaySize);
 }
@@ -566,7 +586,10 @@ function videoPlayKey(e) {
         play_next(-1);
         break;
     case '.':
-        show_info();
+        if (videoPlay.paused)
+            toggle_info();
+        else
+            show_info();
         break;
     case 'v':
         showVideoPane(false);
