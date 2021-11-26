@@ -366,7 +366,7 @@ function showTime() {
     show_briefly(timeLabel, 5000);
 }
 
-function ratio_string(a, b) {
+function crt(a, b) {
     var x = a;
     var y = b;
     while (b) {
@@ -376,7 +376,30 @@ function ratio_string(a, b) {
     }
     x = x / a;
     y = y / a;
-    return `${x}:${y}`;
+    return [x, y];
+}
+
+function ratio_string(a, b) {
+    if (!a || !b)
+        return "";
+
+    const fuzz = [0, -1, +1, -2, +2, -3, +3, -4, +4, -5, +5];
+    var bestxy = null;
+
+    for (var xf of fuzz) {
+        for (var yf of fuzz) {
+            var xy = crt(a + xf, b + yf);
+            if (bestxy == null ||
+                ((xy[0] + xy[1]) < 64 &&
+                 (xy[0] + xy[1]) < (bestxy[0] + bestxy[1])))
+                bestxy = xy;
+        }
+    }
+
+    if (bestxy)
+        return `${bestxy[0]}:${bestxy[1]}`;
+    else
+        return `${a}:${b}`;
 }
 
 function setAspectSizeInfo() {
