@@ -397,9 +397,15 @@ function ratio_string(a, b) {
     for (var xf of fuzz) {
         for (var yf of fuzz) {
             var xy = crt(a + xf, b + yf);
+            var diff;
+
+            if (32 <= (xy[0] + xy[1]))
+                continue;
+
+            diff = Math.abs(a / b - xy[0] / xy[1]);
+
             if (bestxy == null ||
-                ((xy[0] + xy[1]) < 64 &&
-                 (xy[0] + xy[1]) < (bestxy[0] + bestxy[1])))
+                diff < Math.abs(a / b - bestxy[0] / bestxy[1]))
                 bestxy = xy;
         }
     }
