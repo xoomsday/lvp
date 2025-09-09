@@ -567,19 +567,15 @@ function videoPlayKey(e) {
             videoPlay.playbackRate += 0.1;
         showPlaybackRate();
         break;
-    case '>':
-        if (e.ctrlKey)
-            videoPlay.currentTime += 60;
-        else
-            videoPlay.currentTime += 15;
+    case 'ArrowRight':
+        videoPlay.currentTime += 30;
+        resetHideControlsTimer();
         e.preventDefault();
         e.stopImmediatePropagation();
         break;
-    case '<':
-        if (e.ctrlKey)
-            videoPlay.currentTime -= 60;
-        else
-            videoPlay.currentTime -= 5;
+    case 'ArrowLeft':
+        videoPlay.currentTime -= 10;
+        resetHideControlsTimer();
         e.preventDefault();
         e.stopImmediatePropagation();
         break;
