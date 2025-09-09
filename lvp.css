@@ -86,3 +86,12 @@ div.filename {
     display: inline;
     width: 100%;
 }
+
+#video::-webkit-media-controls-panel {
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+}
+
+#video.hide-controls::-webkit-media-controls-panel {
+    opacity: 0;
+}

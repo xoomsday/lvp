@@ -8,6 +8,16 @@ var loopLabel;
 var timeLabel;
 var aspectLabel;
 var sizeLabel;
+var hideControlsTimeout;
+
+function resetHideControlsTimer() {
+    videoPlay.classList.remove('hide-controls');
+    clearTimeout(hideControlsTimeout);
+    var timeout = videoPlay.paused ? 5000 : 2000;
+    hideControlsTimeout = setTimeout(function() {
+        videoPlay.classList.add('hide-controls');
+    }, timeout);
+}
 
 function initialize_all() {
     fileInput = document.getElementById("fileInput");
@@ -63,6 +73,10 @@ function initialize_all() {
     playListPane.addEventListener('keydown', function(e) {
         playListKey(e);
     });
+
+    videoPane.addEventListener('mousemove', resetHideControlsTimer);
+    videoPlay.addEventListener('play', resetHideControlsTimer);
+    videoPlay.addEventListener('pause', resetHideControlsTimer);
 
     window.addEventListener('resize', function(e) {
         setVideoPlaySize();
