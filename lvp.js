@@ -74,9 +74,17 @@ function initialize_all() {
         playListKey(e);
     });
 
-    videoPane.addEventListener('mousemove', resetHideControlsTimer);
+    videoPlay.addEventListener('mousemove', resetHideControlsTimer);
     videoPlay.addEventListener('play', resetHideControlsTimer);
     videoPlay.addEventListener('pause', resetHideControlsTimer);
+
+    var refocus = function(e) {
+        videoPlay.focus();
+    };
+    videoPlay.addEventListener('play', refocus);
+    videoPlay.addEventListener('pause', refocus);
+    videoPlay.addEventListener('seeked', refocus);
+    videoPlay.addEventListener('volumechange', refocus);
 
     window.addEventListener('resize', function(e) {
         setVideoPlaySize();
