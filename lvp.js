@@ -58,6 +58,14 @@ function initialize_all() {
         adjust_tool_visibility();
     });
 
+
+    window.addEventListener('keydown', function(e) {
+        if (document.activeElement === videoPlay &&
+            (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+        }
+    }, true);
+
     videoPlay.addEventListener('keydown', function(e) {
         videoPlayKey(e);
     });
@@ -593,16 +601,12 @@ function videoPlayKey(e) {
     case '>':
         videoPlay.currentTime += 30;
         resetHideControlsTimer();
-        e.preventDefault();
-        e.stopImmediatePropagation();
         showTime();
         break;
     case 'ArrowLeft':
     case '<':
         videoPlay.currentTime -= 10;
         resetHideControlsTimer();
-        e.preventDefault();
-        e.stopImmediatePropagation();
         showTime();
         break;
     case 'a':
