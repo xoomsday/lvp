@@ -594,12 +594,14 @@ function videoPlayKey(e) {
         resetHideControlsTimer();
         e.preventDefault();
         e.stopImmediatePropagation();
+        showTime();
         break;
     case 'ArrowLeft':
         videoPlay.currentTime -= 10;
         resetHideControlsTimer();
         e.preventDefault();
         e.stopImmediatePropagation();
+        showTime();
         break;
     case 'a':
         toggleAspect();
