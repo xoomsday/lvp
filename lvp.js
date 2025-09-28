@@ -590,6 +590,7 @@ function videoPlayKey(e) {
         showPlaybackRate();
         break;
     case 'ArrowRight':
+    case '>':
         videoPlay.currentTime += 30;
         resetHideControlsTimer();
         e.preventDefault();
@@ -597,6 +598,7 @@ function videoPlayKey(e) {
         showTime();
         break;
     case 'ArrowLeft':
+    case '<':
         videoPlay.currentTime -= 10;
         resetHideControlsTimer();
         e.preventDefault();
