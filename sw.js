@@ -11,7 +11,7 @@ self.addEventListener('fetch', event => {
 
 function precache() {
     return caches.open(CACHE).then(cache => {
-	return cache.addAll([
+        return cache.addAll([
             "./LocalVideoPlayer.html",
             "./lvp.css",
             "./lvp.js",
@@ -19,22 +19,22 @@ function precache() {
             "./LVP.png",
             "./manifest.json",
             "./favicon.ico",
-	]);
+        ]);
     });
 }
 
 function fromCache(request) {
     return caches.open(CACHE).then(cache => {
-	return cache.match(request).then(matching => {
-	    return matching || Promise.reject('no-match');
-	});
+        return cache.match(request).then(matching => {
+            return matching || Promise.reject('no-match');
+        });
     });
 }
 
 function update(request) {
     return caches.open(CACHE).then(cache => {
-	return fetch(request).then(response => {
-	    return cache.put(request, response);
-	});
+        return fetch(request).then(response => {
+            return cache.put(request, response);
+        });
     });
 }
