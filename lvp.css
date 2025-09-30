@@ -82,6 +82,10 @@ div.playing {
     display: inline;
     width: 20px;
 }
+div.saving {
+    display: inline;
+    width: 20px;
+}
 div.filename {
     display: inline;
     width: 100%;

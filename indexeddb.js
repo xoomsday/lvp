@@ -22,12 +22,32 @@ function save_selected_files() {
 
     var transaction = lvp_db.transaction(["videos"], "readwrite");
     var store = transaction.objectStore("videos");
+    var items_to_save = [];
 
     for (var d of playList.childNodes) {
         if (d.myCheck.checked) {
+            if (d.mySaving.textContent == '✅')
+                continue;
+            items_to_save.push(d);
+            d.mySaving.textContent = '⏳';
             store.put({ "name": d.myFile.name, "file": d.myFile });
         }
     }
+
+    if (items_to_save.length == 0)
+        return;
+
+    transaction.oncomplete = function(e) {
+        for (var d of items_to_save) {
+            d.mySaving.textContent = '✅';
+        }
+    };
+
+    transaction.onerror = function(e) {
+        for (var d of items_to_save) {
+            d.mySaving.textContent = '❗';
+        }
+    };
 }
 
 function remove_from_db(filename) {

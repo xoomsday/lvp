@@ -49,7 +49,7 @@ function initialize_all() {
         var request = store.getAll();
         request.onsuccess = function(e) {
             for (var record of e.target.result) {
-                add_to_playlist(record.file);
+                add_to_playlist(record.file, true);
             }
             adjust_tool_visibility();
         };
@@ -65,7 +65,7 @@ function initialize_all() {
 
     fileInput.addEventListener('change', function(e) {
         for (var file of e.target.files) {
-            add_to_playlist(file);
+            add_to_playlist(file, false);
         }
         adjust_tool_visibility();
     });
@@ -126,7 +126,7 @@ function pretty_filesize(size) {
     return `${size}${unit[0]}`
 }
 
-function add_to_playlist(file) {
+function add_to_playlist(file, is_saved) {
     var d = document.createElement('div');
     playList.appendChild(d);
 
@@ -143,6 +143,11 @@ function add_to_playlist(file) {
         setPlaying(d);
     });
 
+    var saving = document.createElement('div');
+    saving.setAttribute("class", "saving");
+    if (is_saved)
+        saving.textContent = '✅';
+
     var name = document.createElement('div');
     var filename = pretty_filename(file.name);
     var filesize = pretty_filesize(file.size);
@@ -151,10 +156,12 @@ function add_to_playlist(file) {
 
     d.appendChild(selected);
     d.appendChild(playing);
+    d.appendChild(saving);
     d.appendChild(name);
     d.myFile = file;
     d.myCheck = check;
     d.myPlaying = playing;
+    d.mySaving = saving;
 }
 
 function playlist_remove(e) {
