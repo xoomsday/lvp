@@ -15,6 +15,7 @@ function precache() {
             "./LocalVideoPlayer.html",
             "./lvp.css",
             "./lvp.js",
+            "./indexeddb.js",
             "./sw.js",
             "./LVP.png",
             "./manifest.json",

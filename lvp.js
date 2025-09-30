@@ -43,6 +43,18 @@ function initialize_all() {
             );
     }
 
+    initialize_db(function() {
+        var transaction = lvp_db.transaction(["videos"], "readonly");
+        var store = transaction.objectStore("videos");
+        var request = store.getAll();
+        request.onsuccess = function(e) {
+            for (var record of e.target.result) {
+                add_to_playlist(record.file);
+            }
+            adjust_tool_visibility();
+        };
+    });
+
     setApplicationTitle("");
 
     videoPlay.style.objectFit = 'contain';
@@ -152,6 +164,7 @@ function playlist_remove(e) {
             to_remove.push(d);
     }
     for (var d of to_remove) {
+        remove_from_db(d.myFile.name);
         playList.removeChild(d);
         if (videoPlay.myPlaying === d) {
             videoPlay.pause();

@@ -20,8 +20,9 @@ A simple, offline-first Progressive Web App (PWA) for playing local video files.
     *   **Select Videos:** Click the checkbox next to a video to select it.
     *   **Select All/None (❎):** Toggles the selection of all videos in the playlist.
     *   **Play (▶):** Starts playing the selected video, or the first video if none is selected.
+    *   **Save (💾):** Saves the selected videos to the browser's internal storage (IndexedDB). Saved videos will be automatically loaded the next time you open the app.
     *   **Move Up (🔺) / Down (🔻):** Move selected videos up or down in the playlist.
-    *   **Remove (🗑):** Remove selected videos from the playlist.
+    *   **Remove (🗑):** Remove selected videos from the playlist. If a video has been saved, it will also be removed from the browser's storage.
 
 3.  **Video Playback:**
     *   Click on the '🎵' icon next to a video in the playlist to start playing it.

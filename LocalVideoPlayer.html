@@ -5,6 +5,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <script type="text/javascript" src="lvp.js"></script>
+    <script type="text/javascript" src="indexeddb.js"></script>
   </head>
 
   <body onload="initialize_all()">
@@ -26,6 +27,11 @@
           <button onclick="play_through(-1)"
                   style="display:none"></button>
         </label>
+        <label title="Save selected files">
+          <div style="display:inline">💾</div>
+          <button onclick="save_selected_files()"
+                  style="display:none"></button>
+        </label>
         <label title="Shift selected videos up">
           <div style="display:inline">🔺</div>
           <button onclick="playlist_shift_up()"
@@ -45,7 +51,7 @@
                     font-size: 8pt;
                     right: 2px; top: 0; opacity: 0.3"
              class="alwaysshown"
-             id="dateStamp">20250928.1550</div>
+             id="dateStamp">20250929.1745</div>
       </div>
       <div id="playlist"></div>
     </div>
