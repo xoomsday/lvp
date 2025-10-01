@@ -20,34 +20,27 @@ function save_selected_files() {
     if (!lvp_db)
         return;
 
-    var transaction = lvp_db.transaction(["videos"], "readwrite");
-    var store = transaction.objectStore("videos");
-    var items_to_save = [];
-
     for (var d of playList.childNodes) {
         if (d.myCheck.checked) {
             if (d.mySaving.textContent == '✅')
                 continue;
-            items_to_save.push(d);
-            d.mySaving.textContent = '⏳';
-            store.put({ "name": d.myFile.name, "file": d.myFile });
+
+            (function(playlist_item) {
+                playlist_item.mySaving.textContent = '⏳';
+                var transaction = lvp_db.transaction(["videos"], "readwrite");
+                var store = transaction.objectStore("videos");
+                store.put({ "name": playlist_item.myFile.name, "file": playlist_item.myFile });
+
+                transaction.oncomplete = function(e) {
+                    playlist_item.mySaving.textContent = '✅';
+                };
+
+                transaction.onerror = function(e) {
+                    playlist_item.mySaving.textContent = '❗';
+                };
+            })(d);
         }
     }
-
-    if (items_to_save.length == 0)
-        return;
-
-    transaction.oncomplete = function(e) {
-        for (var d of items_to_save) {
-            d.mySaving.textContent = '✅';
-        }
-    };
-
-    transaction.onerror = function(e) {
-        for (var d of items_to_save) {
-            d.mySaving.textContent = '❗';
-        }
-    };
 }
 
 function remove_from_db(filename) {
