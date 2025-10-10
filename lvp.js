@@ -9,6 +9,7 @@ var timeLabel;
 var aspectLabel;
 var sizeLabel;
 var hideControlsTimeout;
+var willEndAtTime;
 
 function resetHideControlsTimer() {
     videoPlay.classList.remove('hide-controls');
@@ -321,6 +322,7 @@ function showVideoPane(please) {
 }
 
 function play_through(at, start_paused) {
+    willEndAtTime = false;
     if (at < 0)
         at = find_next(0);
     if (at < 0)
@@ -408,6 +410,7 @@ function setVideoPlaySize() {
 function showPlaybackRate() {
     var text = videoPlay.playbackRate.toFixed(2);
     set_notification(speedLabel, "Speed: " + text);
+    willEndAtTime = undefined;
 }
 
 function showLoop() {
@@ -559,8 +562,15 @@ function timeupdate() {
         var total = toHHMMSS(videoPlay.duration);
         var remaining = ((videoPlay.duration - videoPlay.currentTime) /
                          videoPlay.playbackRate);
+
+	if (willEndAtTime === undefined) {
+            var dt = new Date();
+            var hhmmss = (dt.getHours() * 60 + dt.getMinutes()) * 60 + dt.getSeconds();
+	    willEndAtTime = toHHMMSS(hhmmss + remaining);
+	}
         remaining = toHHMMSS(remaining);
-        timeLabel.textContent = `${current} / ${total} (${remaining})`;
+        timeLabel.textContent =
+	    `${current} / ${total} (${remaining} / ${willEndAtTime})`;
     }
 }
 
