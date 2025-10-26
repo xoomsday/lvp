@@ -1,0 +1,104 @@
+<html>
+  <head>
+    <title id="documentTitle">Local Video Player</title>
+    <link rel="stylesheet" href="lvp.css" />
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+    <script type="text/javascript" src="lvp.js" defer></script>
+    <script type="text/javascript" src="indexeddb.js" defer></script>
+  </head>
+
+  <body>
+    <div id="playlistpane" tabindex="0">
+      <div id="tools">
+        <label title="Choose video files to play"
+               style="visibility: visible;" class="alwaysshown">
+          <div style="display:inline">📁</div>
+          <button onclick="open_files()"
+                  style="display:none"></button>
+        </label>
+        <label title="Play">
+          <div style="display:inline">▶</div>
+          <button onclick="play_from_focus()"
+                  style="display:none"></button>
+        </label>
+        <label title="Save selected files">
+          <div style="display:inline">💾</div>
+          <button onclick="save_selected_files()"
+                  style="display:none"></button>
+        </label>
+        <label title="Remove selected videos from the playlist">
+          <div style="display:inline">🗑</div>
+          <button onclick="playlist_remove()"
+                  style="display:none"></button>
+        </label>
+        <div style="display: inline; position: absolute;
+                    font-size: 8pt;
+                    right: 2px; top: 0; opacity: 0.3"
+             class="alwaysshown"
+             id="dateStamp">20251113.1515</div>
+      </div>
+      <div id="playlist"></div>
+    </div>
+
+    <div id="videopane" style="display: none" tabindex="1">
+      <video id="video" controls></video>
+      <div id="speedLabel" class="labelstring"></div>
+      <div id="loopLabel" class="labelstring"></div>
+      <div style="position: absolute;
+                  bottom: 50px;
+                  width: 100%;
+                  padding: 8px;
+                  text-align: center"
+           ><div id="titleLabel" class="labelstring"></div></div>
+      <div id="timeLabel" class="labelstring"></div>
+      <div id="aspectLabel" class="labelstring"></div>
+      <div id="sizeLabel" class="labelstring"></div>
+    </div>
+
+    <div id="help-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h2>Keyboard Shortcuts</h2>
+        <div class="shortcuts-grid">
+          <div id="playlist-shortcuts" class="shortcut-category">
+            <h3>Playlist View</h3>
+            <ul>
+              <li><kbd>o</kbd> - Open file chooser</li>
+              <li><kbd>s</kbd> - Save selected files</li>
+              <li><kbd>x</kbd> - Remove selected videos</li>
+              <li><kbd>v</kbd> - Play focused video</li>
+              <li><kbd>↑</kbd> / <kbd>↓</kbd> - Move focus</li>
+              <li><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd> - Extend selection</li>
+              <li><kbd>Ctrl</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd> - Move selection</li>
+              <li><kbd>Space</kbd> - Toggle selection</li>
+              <li><kbd>Ctrl</kbd>+<kbd>a</kbd> - Select all</li>
+              <li><kbd>Escape</kbd> - Clear selection</li>
+            </ul>
+          </div>
+          <div id="video-shortcuts" class="shortcut-category">
+            <h3>Video Player View</h3>
+            <ul>
+              <li><kbd>Space</kbd> - Play / Pause</li>
+              <li><kbd>←</kbd> / <kbd>→</kbd> - Seek</li>
+              <li><kbd>↑</kbd> / <kbd>↓</kbd> - Volume</li>
+              <li><kbd>m</kbd> - Mute / Unmute</li>
+              <li><kbd>l</kbd> - Toggle loop</li>
+              <li><kbd>n</kbd> / <kbd>p</kbd> - Next / Previous video</li>
+              <li><kbd>[</kbd> / <kbd>]</kbd> - Adjust speed</li>
+              <li><kbd>=</kbd> - Reset speed</li>
+              <li><kbd>a</kbd> - Toggle aspect ratio</li>
+              <li><kbd>f</kbd> - Toggle fullscreen</li>
+              <li><kbd>.</kbd> - Show/hide info</li>
+              <li><kbd>q</kbd> - Back to playlist</li>
+            </ul>
+          </div>
+        </div>
+        <p class="universal-shortcut">
+        Press <kbd>?</kbd> in any view to show or hide this help.
+        </p>
+      </div>
+    </div>
+
+  </body>
+</html>
