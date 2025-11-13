@@ -54,11 +54,28 @@ async function save_selected_files() {
                     handles_store.delete(playlist_item.myId);
                     playlist_item.myId = new_id;
                     playlist_item.myType = "video";
-                    playlist_item.mySaving.textContent = '✅';
                     var filename = pretty_filename(playlist_item.myFile.name);
                     var filesize = pretty_filesize(playlist_item.myFile.size);
                     playlist_item.myName.textContent = `${filename} (${filesize})`;
                     save_playlist();
+                };
+
+                transaction.oncomplete = function() {
+                    var get_transaction = lvp_db.transaction(["videos"], "readonly");
+                    var get_store = get_transaction.objectStore("videos");
+                    var get_request = get_store.get(playlist_item.myId);
+
+                    get_request.onsuccess = function(e) {
+                        var record = e.target.result;
+                        if (record && record.file) {
+                            playlist_item.myFile = record.file;
+                            playlist_item.myHandle = null;
+                        }
+                    };
+
+                    get_transaction.oncomplete = function() {
+                        playlist_item.mySaving.textContent = '✅';
+                    };
                 };
 
                 put_request.onerror = function(e) {
