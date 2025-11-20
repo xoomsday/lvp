@@ -10,6 +10,7 @@ var sizeLabel;
 var hideControlsTimeout;
 var willEndAtTime;
 var refocus;
+var scrollInterval;
 
 function add_video_refocus_listeners() {
     videoPlay.addEventListener('play', refocus);
@@ -175,6 +176,52 @@ async function initialize_all() {
 
     playListPane.addEventListener('keydown', function(e) {
         playListKey(e);
+    });
+
+    // Auto-scrolling for drag and drop
+    playListPane.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const rect = playListPane.getBoundingClientRect();
+        const scrollThreshold = 50; // Pixels from the edge to start scrolling
+        const scrollSpeed = 10;    // Pixels per animation frame
+
+        if (e.clientY < rect.top + scrollThreshold) {
+            // Scroll up
+            if (!scrollInterval) {
+                scrollInterval = requestAnimationFrame(function scrollUp() {
+                    playListPane.scrollTop -= scrollSpeed;
+                    scrollInterval = requestAnimationFrame(scrollUp);
+                });
+            }
+        } else if (e.clientY > rect.bottom - scrollThreshold) {
+            // Scroll down
+            if (!scrollInterval) {
+                scrollInterval = requestAnimationFrame(function scrollDown() {
+                    playListPane.scrollTop += scrollSpeed;
+                    scrollInterval = requestAnimationFrame(scrollDown);
+                });
+            }
+        } else {
+            // Stop scrolling if not near edges
+            if (scrollInterval) {
+                cancelAnimationFrame(scrollInterval);
+                scrollInterval = null;
+            }
+        }
+    });
+
+    playListPane.addEventListener('dragleave', function() {
+        if (scrollInterval) {
+            cancelAnimationFrame(scrollInterval);
+            scrollInterval = null;
+        }
+    });
+
+    playListPane.addEventListener('drop', function() {
+        if (scrollInterval) {
+            cancelAnimationFrame(scrollInterval);
+            scrollInterval = null;
+        }
     });
 
     videoPlay.addEventListener('mousemove', resetHideControlsTimer);
@@ -927,6 +974,7 @@ async function playListKey(e) {
             }
             new_focus.classList.add('focused');
             focused_item = new_focus;
+            focused_item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             save_playlist();
         }
     }
