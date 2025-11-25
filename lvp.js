@@ -46,6 +46,10 @@ async function verify_permission(fileHandle) {
 }
 
 async function open_files() {
+    if (!lvp_db) {
+        console.error("Database not initialized, cannot open files.");
+        return;
+    }
     try {
         const handles = await window.showOpenFilePicker({
             multiple: true,
@@ -110,30 +114,34 @@ async function initialize_all() {
         }
     }
 
-    await initialize_db();
+    try {
+        await initialize_db();
 
-    const playlist = await new Promise((resolve, reject) => {
-        var transaction = lvp_db.transaction(["playlist"], "readonly");
-        var store = transaction.objectStore("playlist");
-        var request = store.get("current");
-        request.onsuccess = (e) => resolve(e.target.result);
-        request.onerror = (e) => reject(e);
-    });
-
-    if (playlist && playlist.files) {
-        const promises = playlist.files.map(item => {
-            return add_to_playlist_by_id(item.type, item.id);
+        const playlist = await new Promise((resolve, reject) => {
+            var transaction = lvp_db.transaction(["playlist"], "readonly");
+            var store = transaction.objectStore("playlist");
+            var request = store.get("current");
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = (e) => reject(e);
         });
-        await Promise.all(promises);
 
-        if (playlist.focus) {
-            d = find_playlist_item_by_id(playlist.focus);
-            focused_item = d;
-            focused_item.classList.add('focused');
-        } else if (playList.childNodes.length > 0) {
-            focused_item = playList.firstChild;
-            focused_item.classList.add('focused');
+        if (playlist && playlist.files) {
+            const promises = playlist.files.map(item => {
+                return add_to_playlist_by_id(item.type, item.id);
+            });
+            await Promise.all(promises);
+
+            if (playlist.focus) {
+                d = find_playlist_item_by_id(playlist.focus);
+                focused_item = d;
+                focused_item.classList.add('focused');
+            } else if (playList.childNodes.length > 0) {
+                focused_item = playList.firstChild;
+                focused_item.classList.add('focused');
+            }
         }
+    } catch (e) {
+        console.error("Failed to initialize database or load playlist:", e);
     }
 
     adjust_tool_visibility();
