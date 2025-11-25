@@ -2,13 +2,37 @@ var lvp_db;
 
 function initialize_db() {
     return new Promise((resolve, reject) => {
-        var request = window.indexedDB.open("lvp_db", 1);
+        var request = window.indexedDB.open("lvp_db", 2);
 
         request.onupgradeneeded = function(e) {
             var db = e.target.result;
-            db.createObjectStore("videos", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("file_handles", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("playlist", { keyPath: "name" });
+            if (e.oldVersion < 1) {
+                db.createObjectStore("videos", { keyPath: "id", autoIncrement: true });
+                db.createObjectStore("file_handles", { keyPath: "id", autoIncrement: true });
+                db.createObjectStore("playlist", { keyPath: "name" });
+            }
+            if (e.oldVersion < 2) {
+                var transaction = e.target.transaction;
+                var stores = ["videos", "file_handles"];
+
+                for (const storeName of stores) {
+                    var store = transaction.objectStore(storeName);
+                    store.openCursor().onsuccess = function(event) {
+                        var cursor = event.target.result;
+                        if (cursor) {
+                            var record = cursor.value;
+                            if (!record.last_played_time) {
+                                record.last_played_time = null;
+                            }
+                            if (!record.last_playback_position) {
+                                record.last_playback_position = 0;
+                            }
+                            cursor.update(record);
+                            cursor.continue();
+                        }
+                    };
+                }
+            }
         };
 
         request.onsuccess = function(e) {
@@ -47,7 +71,7 @@ async function save_selected_files() {
                 var transaction = lvp_db.transaction(["videos", "file_handles"], "readwrite");
                 var videos_store = transaction.objectStore("videos");
                 var handles_store = transaction.objectStore("file_handles");
-                var put_request = videos_store.put({ "name": playlist_item.myFile.name, "file": playlist_item.myFile });
+                var put_request = videos_store.put({ "name": playlist_item.myFile.name, "file": playlist_item.myFile, "last_played_time": null, "last_playback_position": 0 });
 
                 put_request.onsuccess = function(e) {
                     var new_id = e.target.result;
@@ -116,4 +140,57 @@ function remove_from_db(id, type) {
     var transaction = lvp_db.transaction([store_name], "readwrite");
     var store = transaction.objectStore(store_name);
     store.delete(id);
+}
+
+function update_video_playback_info(id, type, last_played_time, last_playback_position) {
+    if (!lvp_db || !id)
+        return;
+
+    var store_name = (type == "video") ? "videos" : "file_handles";
+    var transaction = lvp_db.transaction([store_name], "readwrite");
+    var store = transaction.objectStore(store_name);
+
+    var request = store.get(id);
+
+    request.onsuccess = function(e) {
+        var video = e.target.result;
+        if (video) {
+            video.last_played_time = last_played_time;
+            video.last_playback_position = last_playback_position;
+            store.put(video);
+        }
+    };
+
+    request.onerror = function(e) {
+        console.log("Failed to update video playback info:" + e.target.error);
+    };
+}
+
+async function get_video_playback_info(id, type) {
+    if (!lvp_db || !id)
+        return { last_played_time: null, last_playback_position: 0 };
+
+    return new Promise((resolve, reject) => {
+        var store_name = (type == "video") ? "videos" : "file_handles";
+        var transaction = lvp_db.transaction([store_name], "readonly");
+        var store = transaction.objectStore(store_name);
+        var request = store.get(id);
+
+        request.onsuccess = function(e) {
+            var video = e.target.result;
+            if (video) {
+                resolve({
+                    last_played_time: video.last_played_time,
+                    last_playback_position: video.last_playback_position
+                });
+            } else {
+                resolve({ last_played_time: null, last_playback_position: 0 });
+            }
+        };
+
+        request.onerror = function(e) {
+            console.log("Failed to get video playback info:" + e.target.error);
+            resolve({ last_played_time: null, last_playback_position: 0 });
+        };
+    });
 }

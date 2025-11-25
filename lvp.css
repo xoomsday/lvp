@@ -73,7 +73,10 @@ div.labelstring {
 }
 div#playlist > div {
     display: flex;
+    align-items: center;
     width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
 }
 #tools {
     font-size: 30px;
@@ -91,12 +94,25 @@ div.selected {
     width: 20px;
 }
 div.saving {
-    display: inline;
+    flex-shrink: 0;
     width: 20px;
+    text-align: center;
 }
 div.filename {
-    display: inline;
-    width: 100%;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0 10px;
+}
+div.last-played {
+    flex-shrink: 0;
+    font-size: 0.7em;
+    color: #555;
+    text-align: right;
+    margin-left: auto;
+    min-width: 150px;
+    white-space: nowrap;
 }
 
 #video::-webkit-media-controls-panel {

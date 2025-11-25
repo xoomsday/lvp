@@ -1,1 +1,2 @@
-*.js	whitespace=tab-in-indent
+*.js	whitespace=tab-in-indent,incomplete-line
+*.css	whitespace=tab-in-indent,incomplete-line

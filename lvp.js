@@ -72,7 +72,7 @@ async function open_files() {
         const promises = [];
 
         for (const handle of handles) {
-            const request = store.put({ "handle": handle });
+            const request = store.put({ "handle": handle, "last_played_time": null, "last_playback_position": 0 });
             promises.push(new Promise((resolve, reject) => {
                 request.onsuccess = function(e) {
                     add_to_playlist_by_id("handle", e.target.result).then(resolve);
@@ -150,6 +150,11 @@ async function initialize_all() {
 
     videoPlay.style.objectFit = 'contain';
     videoPlay.addEventListener('ended', async function(e) {
+        if (videoPlay.myPlaying) {
+            var d = videoPlay.myPlaying;
+            update_video_playback_info(d.myId, d.myType, Date.now(), 0);
+            d.myLastPlayed.textContent = "Last played: " + new Date().toLocaleString();
+        }
         if (await play_next(1) < 0)
             showVideoPane(false);
     });
@@ -165,6 +170,7 @@ async function initialize_all() {
         videoPlayKey(e);
     });
 
+    videoPlay.addEventListener('pause', save_current_playback_info);
 
     videoPlay.addEventListener('timeupdate', e => {
         timeupdate();
@@ -291,7 +297,7 @@ function find_playlist_item_by_id(id) {
     return null;
 }
 
-function add_to_playlist(file, is_saved, id, type) {
+async function add_to_playlist(file, is_saved, id, type) {
     var d = document.createElement('div');
     playList.appendChild(d);
     d.draggable = true;
@@ -375,10 +381,21 @@ function add_to_playlist(file, is_saved, id, type) {
     name.setAttribute("class", "filename");
     name.textContent = `${filename} (${filesize})`;
 
+    var last_played_el = document.createElement('div');
+    last_played_el.setAttribute("class", "last-played");
+    const playback_info = await get_video_playback_info(id, type);
+    if (playback_info.last_played_time) {
+        last_played_el.textContent = "Last played: " + new Date(playback_info.last_played_time).toLocaleString();
+    } else {
+        last_played_el.textContent = "Not played yet";
+    }
+
     d.appendChild(saving);
     d.appendChild(name);
+    d.appendChild(last_played_el);
     d.mySaving = saving;
     d.myName = name;
+    d.myLastPlayed = last_played_el;
     d.myId = id;
     d.myType = type;
 }
@@ -475,7 +492,7 @@ function find_next(offset) {
 async function play_next(offset) {
     var at = find_next(offset);
     if (0 <= at)
-        await play_through(at);
+        await play_through(at, false);
     return at;
 }
 
@@ -497,7 +514,8 @@ function showVideoPane(please) {
     }
 }
 
-async function play_through(at, start_paused) {
+async function play_through(at, continue_playing) {
+    save_current_playback_info();
     willEndAtTime = false;
     if (at < 0)
         at = find_next(0);
@@ -511,14 +529,13 @@ async function play_through(at, start_paused) {
     }
 
     var d = playList.childNodes[at];
-    await setPlaying(d);
+    await setPlaying(d, continue_playing);
 
     playListPane.style.display = "none";
     videoPane.style.display = "block";
     setVideoPlaySize();
     add_video_refocus_listeners();
-    if (!start_paused)
-        videoPlay.play();
+    videoPlay.play();
     show_info();
 }
 
@@ -543,7 +560,7 @@ async function ensure_file_access(item) {
     return item.myFile != null;
 }
 
-async function setPlaying(d) {
+async function setPlaying(d, continue_playing) {
     if (!await ensure_file_access(d))
         return;
 
@@ -553,9 +570,24 @@ async function setPlaying(d) {
         videoPlay.myPlaying = d;
         videoPlay.setAttribute('src', URL.createObjectURL(d.myFile));
         videoPlay.playbackRate = lastSpeed;
-    }
 
+        if (continue_playing) {
+            const playback_info = await get_video_playback_info(d.myId, d.myType);
+            if (playback_info.last_playback_position > 0) {
+                videoPlay.currentTime = playback_info.last_playback_position;
+            }
+        }
+    }
+    update_video_playback_info(d.myId, d.myType, Date.now(), videoPlay.currentTime);
     setApplicationTitle(pretty_filename(d.myFile.name));
+}
+
+function save_current_playback_info() {
+    if (videoPlay.myPlaying) {
+        var d = videoPlay.myPlaying;
+        update_video_playback_info(d.myId, d.myType, Date.now(), videoPlay.currentTime);
+        d.myLastPlayed.textContent = "Last played: " + new Date().toLocaleString();
+    }
 }
 
 function unshow_all() {
@@ -782,9 +814,9 @@ async function play_from_focus() {
     if (focused_item) {
         var children = Array.from(playList.childNodes);
         var index = children.indexOf(focused_item);
-        await play_through(index, false);
+        await play_through(index, true);
     } else if (playList.childNodes.length > 0) {
-        await play_through(0, false);
+        await play_through(0, true);
     }
 }
 
@@ -1033,6 +1065,7 @@ async function videoPlayKey(e) {
             show_info();
         break;
     case 'q':
+        save_current_playback_info();
         if (focused_item) {
             focused_item.classList.remove('focused');
         }
@@ -1080,6 +1113,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('beforeunload', () => {
+    save_current_playback_info();
     save_playlist();
 });
 
