@@ -1029,14 +1029,12 @@ async function videoPlayKey(e) {
         showPlaybackRate();
         break;
     case 'ArrowRight':
-    case '>':
-        videoPlay.currentTime += 30;
+        videoPlay.currentTime += (e.shiftKey) ? 5 : 30;
         resetHideControlsTimer();
         showTime();
         break;
     case 'ArrowLeft':
-    case '<':
-        videoPlay.currentTime -= 10;
+        videoPlay.currentTime -= (e.shiftKey) ? 1 : 10;
         resetHideControlsTimer();
         showTime();
         break;
