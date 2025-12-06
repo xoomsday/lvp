@@ -142,6 +142,8 @@ function remove_from_db(id, type) {
     store.delete(id);
 }
 
+
+
 function update_video_playback_info(id, type, last_played_time, last_playback_position) {
     if (!lvp_db || !id)
         return;

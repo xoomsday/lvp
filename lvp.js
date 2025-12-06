@@ -444,6 +444,54 @@ function playlist_item_clicked(e) {
     }
 }
 
+function get_all_keys(store) {
+    return new Promise((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function resurrect_orphaned_items() {
+    if (!lvp_db)
+        return;
+
+    const transaction = lvp_db.transaction(["videos", "file_handles", "playlist"], "readonly");
+    const videos_store = transaction.objectStore("videos");
+    const handles_store = transaction.objectStore("file_handles");
+    const playlist_store = transaction.objectStore("playlist");
+
+    const all_video_keys = await get_all_keys(videos_store);
+    const all_handle_keys = await get_all_keys(handles_store);
+
+    const playlist_req = playlist_store.get("current");
+    playlist_req.onsuccess = async function(e) {
+        const playlist = e.target.result;
+        const referenced_video_ids = new Set();
+        const referenced_handle_ids = new Set();
+
+        if (playlist && playlist.files) {
+            for (const file of playlist.files) {
+                if (file.type === 'video') {
+                    referenced_video_ids.add(file.id);
+                } else { // 'handle'
+                    referenced_handle_ids.add(file.id);
+                }
+            }
+        }
+
+        const orphaned_video_keys = all_video_keys.filter(id => !referenced_video_ids.has(id));
+        for (const id of orphaned_video_keys) {
+            await add_to_playlist_by_id("video", id);
+        }
+
+        const orphaned_handle_keys = all_handle_keys.filter(id => !referenced_handle_ids.has(id));
+        for (const id of orphaned_handle_keys) {
+            await add_to_playlist_by_id("handle", id);
+        }
+    };
+}
+
 function playlist_remove(e) {
     var to_remove = [];
     for (var d of playList.childNodes) {
@@ -460,6 +508,8 @@ function playlist_remove(e) {
             videoPlay.myPlaying = null;
         }
     }
+    if (playList.childNodes.length == 0)
+        resurrect_orphaned_items();
     adjust_tool_visibility();
     save_playlist();
 }
