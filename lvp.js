@@ -986,7 +986,7 @@ async function playListKey(e) {
                     const span_items = all_items.slice(first_selected_index, last_selected_index + 1);
                     const non_selected_in_span = span_items.filter(item => !item.classList.contains('selected'));
                     const insertion_point = selected_items[0];
-                    for (const item of non_selected_in_span.reverse()) {
+                    for (const item of non_selected_in_span) {
                         playList.insertBefore(item, insertion_point);
                     }
                 } else {
