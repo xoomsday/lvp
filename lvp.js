@@ -513,6 +513,14 @@ function playlist_remove(e) {
     }
     if (playList.childNodes.length == 0)
         resurrect_orphaned_items();
+
+    if (!focused_item && playList.childNodes.length) {
+        var new_focus = playList.childNodes[0];
+        new_focus.add('focused');
+        focused_item = new_focus;
+        focused_item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
     adjust_tool_visibility();
     save_playlist();
 }
