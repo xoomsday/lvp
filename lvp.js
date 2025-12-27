@@ -495,7 +495,7 @@ async function resurrect_orphaned_items() {
     };
 }
 
-function playlist_remove(e) {
+async function playlist_remove(e) {
     var to_remove = [];
     for (var d of playList.childNodes) {
         if (d.classList.contains('selected'))
@@ -512,7 +512,7 @@ function playlist_remove(e) {
         }
     }
     if (playList.childNodes.length == 0)
-        resurrect_orphaned_items();
+        await resurrect_orphaned_items();
 
     if (!focused_item && playList.childNodes.length) {
         var new_focus = playList.childNodes[0];
