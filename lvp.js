@@ -437,9 +437,12 @@ function playlist_item_clicked(e) {
         last_clicked_item = clicked_item;
     } else {
         for (var child of playList.childNodes) {
-            child.classList.remove('selected');
+            if (clicked_item === child) {
+                clicked_item.classList.toggle('selected');
+            } else {
+                child.classList.remove('selected');
+            }
         }
-        clicked_item.classList.add('selected');
         last_clicked_item = clicked_item;
     }
 }
