@@ -402,9 +402,11 @@ async function add_to_playlist(file, is_saved, id, type) {
 
 var last_clicked_item = null;
 var focused_item = null;
+var last_removed_index = -1;
 
 function playlist_item_clicked(e) {
     var clicked_item = e.currentTarget;
+    var was_something_focused = (focused_item !== null);
 
     // First, manage focus
     if (focused_item) {
@@ -412,7 +414,13 @@ function playlist_item_clicked(e) {
     }
     clicked_item.classList.add('focused');
     focused_item = clicked_item;
+    last_removed_index = -1;
     save_playlist();
+
+    if (!was_something_focused) {
+        last_clicked_item = clicked_item;
+        return;
+    }
 
     // Next, manage selection
     if (e.shiftKey && last_clicked_item) {
@@ -497,11 +505,25 @@ async function resurrect_orphaned_items() {
 
 async function playlist_remove(e) {
     var to_remove = [];
-    for (var d of playList.childNodes) {
-        if (d.classList.contains('selected'))
+    var children = Array.from(playList.childNodes);
+    var first_removed_index = -1;
+
+    for (var i = 0; i < children.length; i++) {
+        var d = children[i];
+        if (d.classList.contains('selected')) {
             to_remove.push(d);
+            if (first_removed_index === -1) {
+                first_removed_index = i;
+            }
+        }
     }
+
+    if (to_remove.length === 0) return;
+
     for (var d of to_remove) {
+        if (d === focused_item) {
+            focused_item = null;
+        }
         remove_from_db(d.myId, d.myType);
         playList.removeChild(d);
         if (videoPlay.myPlaying === d) {
@@ -511,15 +533,13 @@ async function playlist_remove(e) {
             videoPlay.myPlaying = null;
         }
     }
+
+    if (focused_item === null) {
+        last_removed_index = first_removed_index;
+    }
+
     if (playList.childNodes.length == 0)
         await resurrect_orphaned_items();
-
-    if (!focused_item && playList.childNodes.length) {
-        var new_focus = playList.childNodes[0];
-        new_focus.add('focused');
-        focused_item = new_focus;
-        focused_item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
 
     adjust_tool_visibility();
     save_playlist();
@@ -1016,11 +1036,29 @@ async function playListKey(e) {
             return;
         }
 
-        var current_focus = focused_item || playList.firstChild;
-        if (e.key === 'ArrowDown') {
-            new_focus = current_focus.nextSibling || current_focus;
+        var current_focus = focused_item;
+        if (!current_focus) {
+            var children = playList.childNodes;
+            if (children.length === 0) return;
+
+            if (last_removed_index !== -1) {
+                if (e.key === 'ArrowDown') {
+                    var idx = Math.min(last_removed_index, children.length - 1);
+                    new_focus = children[idx];
+                } else { // ArrowUp
+                    var idx = Math.max(0, last_removed_index - 1);
+                    new_focus = children[idx];
+                }
+                last_removed_index = -1;
+            } else {
+                new_focus = playList.firstChild;
+            }
         } else {
-            new_focus = current_focus.previousSibling || current_focus;
+            if (e.key === 'ArrowDown') {
+                new_focus = current_focus.nextSibling || current_focus;
+            } else {
+                new_focus = current_focus.previousSibling || current_focus;
+            }
         }
         if (!e.shiftKey) {
             last_clicked_item = null; // Reset anchor on non-shift move
@@ -1032,6 +1070,7 @@ async function playListKey(e) {
         if (focused_item) {
             focused_item.classList.toggle('selected');
             last_clicked_item = focused_item;
+            last_removed_index = -1;
         }
         return; // No focus change
 
@@ -1067,6 +1106,7 @@ async function playListKey(e) {
             }
             new_focus.classList.add('focused');
             focused_item = new_focus;
+            last_removed_index = -1;
             focused_item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             save_playlist();
         }
