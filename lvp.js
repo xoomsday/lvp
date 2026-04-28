@@ -113,6 +113,8 @@ async function refresh_playlist_selector() {
         selector.appendChild(option);
     }
 
+    selector.style.display = (playlists.length <= 1) ? "none" : "inline-block";
+
     document.getElementById("playlistDeleteBtn").disabled = (current_playlist_name === "default");
     document.getElementById("playlistRenameBtn").disabled = (current_playlist_name === "default");
 }
@@ -239,6 +241,70 @@ async function playlist_delete() {
 
     delete_playlist_from_db(current_playlist_name);
     await load_playlist_by_name("default");
+}
+
+async function playlist_move() {
+    var to_move = [];
+    var children = Array.from(playList.childNodes);
+    for (var i = 0; i < children.length; i++) {
+        var d = children[i];
+        if (d.classList.contains('selected')) {
+            to_move.push(d);
+        }
+    }
+
+    if (to_move.length === 0) return;
+
+    const playlists = await get_all_playlists();
+    const otherPlaylists = playlists.filter(name => name !== current_playlist_name);
+
+    if (otherPlaylists.length === 0) {
+        alert("Create another playlist first to move videos.");
+        return;
+    }
+
+    let targetName = prompt("Move to playlist:\n" + otherPlaylists.join("\n"), otherPlaylists[0]);
+    if (!targetName) return;
+    targetName = targetName.trim();
+    if (!playlists.includes(targetName) || targetName === current_playlist_name) {
+        alert("Invalid playlist name.");
+        return;
+    }
+
+    // Load target playlist
+    const targetPlaylistData = await new Promise((resolve) => {
+        var transaction = lvp_db.transaction(["playlist"], "readonly");
+        var store = transaction.objectStore("playlist");
+        var request = store.get(targetName);
+        request.onsuccess = (e) => resolve(e.target.result || { name: targetName, files: [] });
+    });
+
+    // Add items to target playlist
+    for (var d of to_move) {
+        targetPlaylistData.files.push({ id: d.myId, type: d.myType });
+    }
+
+    // Save target playlist
+    await new Promise((resolve) => {
+        var transaction = lvp_db.transaction(["playlist"], "readwrite");
+        var store = transaction.objectStore("playlist");
+        store.put(targetPlaylistData);
+        transaction.oncomplete = resolve;
+    });
+
+    // Remove from current playlist
+    for (var d of to_move) {
+        if (d === focused_item) {
+            focused_item = null;
+        }
+        if (d === last_clicked_item) {
+            last_clicked_item = null;
+        }
+        playList.removeChild(d);
+    }
+
+    save_playlist(current_playlist_name);
+    adjust_tool_visibility();
 }
 
 async function initialize_all() {
@@ -1109,6 +1175,9 @@ async function playListKey(e) {
         return;
     case 's':
         save_selected_files();
+        return;
+    case 'm':
+        playlist_move();
         return;
     case 'x':
         playlist_remove();
