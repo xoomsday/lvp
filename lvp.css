@@ -89,6 +89,26 @@ div#playlist > div {
 #tools > label {
     visibility: hidden;
 }
+#playlist-controls button {
+    font-size: 14pt;
+    padding: 2px 5px;
+    cursor: pointer;
+    background: none;
+    border: 1px solid #99a;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+#playlist-controls button:hover {
+    background: #dde;
+}
+#playlist-controls button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+#playlistSelect {
+    font-size: 14pt;
+    vertical-align: middle;
+}
 div.selected {
     display: inline;
     width: 20px;

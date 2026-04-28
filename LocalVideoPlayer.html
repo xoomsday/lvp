@@ -36,7 +36,15 @@
                     font-size: 8pt;
                     right: 2px; top: 0; opacity: 0.3"
              class="alwaysshown"
-             id="dateStamp">20260416.1100</div>
+             id="dateStamp">20260429.0830</div>
+        <div id="playlist-controls" class="alwaysshown"
+             style="display: inline-block; font-size: 14pt;
+                    vertical-align: middle; margin-left: 10px;">
+          <select id="playlistSelect" onchange="on_playlist_change()"></select>
+          <button onclick="playlist_new()" title="New playlist">➕</button>
+          <button id="playlistRenameBtn" onclick="playlist_rename()" title="Rename playlist">✏️</button>
+          <button id="playlistDeleteBtn" onclick="playlist_delete()" title="Delete playlist">🗑️</button>
+        </div>
       </div>
       <div id="playlist"></div>
     </div>

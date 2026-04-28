@@ -81,7 +81,7 @@ async function save_selected_files() {
                     var filename = pretty_filename(playlist_item.myFile.name);
                     var filesize = pretty_filesize(playlist_item.myFile.size);
                     playlist_item.myName.textContent = `${filename} (${filesize})`;
-                    save_playlist();
+                    save_playlist(current_playlist_name);
                 };
 
                 transaction.oncomplete = function() {
@@ -110,26 +110,57 @@ async function save_selected_files() {
     }
 }
 
-function save_playlist() {
-    if (!lvp_db)
-        return;
-
-    var playlist_files = [];
-    var focus_id = null;
-    for (var d of playList.childNodes) {
-        if (d.classList.contains('focused')) {
-            focus_id = d.myId;
+function save_playlist(name) {
+    return new Promise((resolve, reject) => {
+        if (!lvp_db || !name) {
+            resolve();
+            return;
         }
-        playlist_files.push({ "id": d.myId, "type": d.myType });
-    }
+
+        var playlist_files = [];
+        var focus_id = null;
+        for (var d of playList.childNodes) {
+            if (d.classList.contains('focused')) {
+                focus_id = d.myId;
+            }
+            playlist_files.push({ "id": d.myId, "type": d.myType });
+        }
+
+        var transaction = lvp_db.transaction(["playlist"], "readwrite");
+        var store = transaction.objectStore("playlist");
+        store.put({ "name": name, "files": playlist_files, "focus": focus_id });
+
+        transaction.oncomplete = function() {
+            resolve();
+        };
+
+        transaction.onerror = function(e) {
+            console.log("Failed to save playlist");
+            reject(e);
+        };
+    });
+}
+
+function delete_playlist_from_db(name) {
+    if (!lvp_db || !name || name === "default")
+        return;
 
     var transaction = lvp_db.transaction(["playlist"], "readwrite");
     var store = transaction.objectStore("playlist");
-    store.put({ "name": "current", "files": playlist_files, "focus": focus_id });
+    store.delete(name);
+}
 
-    transaction.onerror = function(e) {
-        console.log("Failed to save playlist");
-    };
+async function get_all_playlists() {
+    if (!lvp_db)
+        return [];
+
+    return new Promise((resolve, reject) => {
+        var transaction = lvp_db.transaction(["playlist"], "readonly");
+        var store = transaction.objectStore("playlist");
+        var request = store.getAllKeys();
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e);
+    });
 }
 
 function remove_from_db(id, type) {

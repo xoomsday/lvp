@@ -11,6 +11,7 @@ var hideControlsTimeout;
 var willEndAtTime;
 var refocus;
 var scrollInterval;
+var current_playlist_name = "default";
 
 function add_video_refocus_listeners() {
     videoPlay.addEventListener('play', refocus);
@@ -82,7 +83,7 @@ async function open_files() {
         }
 
         await Promise.all(promises);
-        save_playlist();
+        save_playlist(current_playlist_name);
         adjust_tool_visibility();
 
         if (was_empty && playList.childNodes.length > 0) {
@@ -93,6 +94,151 @@ async function open_files() {
     } catch (e) {
         console.log(e);
     }
+}
+
+async function refresh_playlist_selector() {
+    const selector = document.getElementById("playlistSelect");
+    const playlists = await get_all_playlists();
+
+    playlists.sort();
+
+    selector.innerHTML = "";
+    for (const name of playlists) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === current_playlist_name) {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    }
+
+    document.getElementById("playlistDeleteBtn").disabled = (current_playlist_name === "default");
+    document.getElementById("playlistRenameBtn").disabled = (current_playlist_name === "default");
+}
+
+async function load_playlist_by_name(name) {
+    if (!lvp_db) return;
+
+    playList.innerHTML = "";
+    focused_item = null;
+    last_clicked_item = null;
+
+    const playlist = await new Promise((resolve, reject) => {
+        var transaction = lvp_db.transaction(["playlist"], "readonly");
+        var store = transaction.objectStore("playlist");
+        var request = store.get(name);
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e);
+    });
+
+    if (playlist && playlist.files) {
+        const promises = playlist.files.map(item => {
+            return add_to_playlist_by_id(item.type, item.id);
+        });
+        await Promise.all(promises);
+
+        if (playlist.focus) {
+            var d = find_playlist_item_by_id(playlist.focus);
+            if (d) {
+                focused_item = d;
+                focused_item.classList.add('focused');
+            }
+        }
+        if (!focused_item && playList.childNodes.length > 0) {
+            focused_item = playList.firstChild;
+            focused_item.classList.add('focused');
+        }
+    }
+
+    current_playlist_name = name;
+    localStorage.setItem("last_playlist", name);
+    await refresh_playlist_selector();
+    adjust_tool_visibility();
+}
+
+async function on_playlist_change() {
+    const selector = document.getElementById("playlistSelect");
+    const name = selector.value;
+    if (name !== current_playlist_name) {
+        save_current_playback_info();
+        save_playlist(current_playlist_name);
+        await load_playlist_by_name(name);
+    }
+}
+
+async function playlist_new() {
+    let name = prompt("Enter name for the new playlist:");
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+
+    const playlists = await get_all_playlists();
+    if (playlists.includes(name)) {
+        alert("A playlist with this name already exists.");
+        return;
+    }
+
+    save_current_playback_info();
+    save_playlist(current_playlist_name);
+
+    current_playlist_name = name;
+    playList.innerHTML = "";
+    focused_item = null;
+    last_clicked_item = null;
+
+    save_playlist(current_playlist_name);
+    localStorage.setItem("last_playlist", name);
+    await refresh_playlist_selector();
+    adjust_tool_visibility();
+}
+
+async function playlist_rename() {
+    if (current_playlist_name === "default") return;
+
+    let newName = prompt("Enter new name for the playlist:", current_playlist_name);
+    if (!newName) return;
+    newName = newName.trim();
+    if (!newName || newName === current_playlist_name) return;
+
+    const playlists = await get_all_playlists();
+    if (playlists.includes(newName)) {
+        alert("A playlist with this name already exists.");
+        return;
+    }
+
+    const oldName = current_playlist_name;
+    const playlistData = await new Promise((resolve) => {
+        var transaction = lvp_db.transaction(["playlist"], "readonly");
+        var store = transaction.objectStore("playlist");
+        var request = store.get(oldName);
+        request.onsuccess = (e) => resolve(e.target.result);
+    });
+
+    if (playlistData) {
+        playlistData.name = newName;
+        await new Promise((resolve) => {
+            var transaction = lvp_db.transaction(["playlist"], "readwrite");
+            var store = transaction.objectStore("playlist");
+            store.put(playlistData);
+            store.delete(oldName);
+            transaction.oncomplete = resolve;
+        });
+        current_playlist_name = newName;
+        localStorage.setItem("last_playlist", newName);
+        await refresh_playlist_selector();
+    }
+}
+
+async function playlist_delete() {
+    if (current_playlist_name === "default") return;
+
+    if (!confirm(`Are you sure you want to delete the playlist "${current_playlist_name}"?`)) {
+        return;
+    }
+
+    delete_playlist_from_db(current_playlist_name);
+    await load_playlist_by_name("default");
 }
 
 async function initialize_all() {
@@ -118,29 +264,33 @@ async function initialize_all() {
     try {
         await initialize_db();
 
-        const playlist = await new Promise((resolve, reject) => {
-            var transaction = lvp_db.transaction(["playlist"], "readonly");
-            var store = transaction.objectStore("playlist");
-            var request = store.get("current");
-            request.onsuccess = (e) => resolve(e.target.result);
-            request.onerror = (e) => reject(e);
-        });
-
-        if (playlist && playlist.files) {
-            const promises = playlist.files.map(item => {
-                return add_to_playlist_by_id(item.type, item.id);
+        const allPlaylists = await get_all_playlists();
+        if (allPlaylists.includes("current") && !allPlaylists.includes("default")) {
+            const currentData = await new Promise((resolve) => {
+                var transaction = lvp_db.transaction(["playlist"], "readonly");
+                var store = transaction.objectStore("playlist");
+                var request = store.get("current");
+                request.onsuccess = (e) => resolve(e.target.result);
             });
-            await Promise.all(promises);
-
-            if (playlist.focus) {
-                d = find_playlist_item_by_id(playlist.focus);
-                focused_item = d;
-                focused_item.classList.add('focused');
-            } else if (playList.childNodes.length > 0) {
-                focused_item = playList.firstChild;
-                focused_item.classList.add('focused');
+            if (currentData) {
+                currentData.name = "default";
+                await new Promise((resolve) => {
+                    var transaction = lvp_db.transaction(["playlist"], "readwrite");
+                    var store = transaction.objectStore("playlist");
+                    store.put(currentData);
+                    store.delete("current");
+                    transaction.oncomplete = resolve;
+                });
             }
         }
+
+        if (!(await get_all_playlists()).includes("default")) {
+            await save_playlist("default");
+        }
+
+        current_playlist_name = localStorage.getItem("last_playlist") || "default";
+        await refresh_playlist_selector();
+        await load_playlist_by_name(current_playlist_name);
     } catch (e) {
         console.error("Failed to initialize database or load playlist:", e);
     }
@@ -359,7 +509,7 @@ async function add_to_playlist(file, is_saved, id, type) {
             playList.insertBefore(fragment, d.nextSibling);
         }
 
-        save_playlist();
+        save_playlist(current_playlist_name);
     });
     var saving = document.createElement('div');
     saving.setAttribute("class", "saving");
@@ -415,7 +565,7 @@ function playlist_item_clicked(e) {
     clicked_item.classList.add('focused');
     focused_item = clicked_item;
     last_removed_index = -1;
-    save_playlist();
+    save_playlist(current_playlist_name);
 
     if (!was_something_focused) {
         last_clicked_item = clicked_item;
@@ -475,7 +625,7 @@ async function resurrect_orphaned_items() {
     const all_video_keys = await get_all_keys(videos_store);
     const all_handle_keys = await get_all_keys(handles_store);
 
-    const playlist_req = playlist_store.get("current");
+    const playlist_req = playlist_store.get(current_playlist_name);
     playlist_req.onsuccess = async function(e) {
         const playlist = e.target.result;
         const referenced_video_ids = new Set();
@@ -542,7 +692,7 @@ async function playlist_remove(e) {
         await resurrect_orphaned_items();
 
     adjust_tool_visibility();
-    save_playlist();
+    save_playlist(current_playlist_name);
 }
 
 function adjust_tool_visibility() {
@@ -929,7 +1079,7 @@ function move_selection(direction) {
         playList.insertBefore(item, insertion_point);
     }
 
-    save_playlist();
+    save_playlist(current_playlist_name);
 }
 
 async function playListKey(e) {
@@ -1032,7 +1182,7 @@ async function playListKey(e) {
                     }
                 }
             }
-            save_playlist();
+            save_playlist(current_playlist_name);
             return;
         }
 
@@ -1108,7 +1258,7 @@ async function playListKey(e) {
             focused_item = new_focus;
             last_removed_index = -1;
             focused_item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            save_playlist();
+            save_playlist(current_playlist_name);
         }
     }
 }
@@ -1176,7 +1326,7 @@ async function videoPlayKey(e) {
         videoPlay.pause();
         showVideoPane(false);
         setApplicationTitle("");
-        save_playlist();
+        save_playlist(current_playlist_name);
         break;
     default:
         break;
@@ -1213,7 +1363,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('beforeunload', () => {
     save_current_playback_info();
-    save_playlist();
+    save_playlist(current_playlist_name);
 });
 
 document.addEventListener('keydown', (e) => {
