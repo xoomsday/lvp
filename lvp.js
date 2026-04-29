@@ -740,30 +740,36 @@ async function resurrect_orphaned_items() {
     const all_video_keys = await get_all_keys(videos_store);
     const all_handle_keys = await get_all_keys(handles_store);
 
-    const playlist_req = playlist_store.get(current_playlist_name);
-    playlist_req.onsuccess = async function(e) {
-        const playlist = e.target.result;
-        const referenced_video_ids = new Set();
-        const referenced_handle_ids = new Set();
+    const referenced_video_ids = new Set();
+    const referenced_handle_ids = new Set();
 
-        if (playlist && playlist.files) {
-            for (const file of playlist.files) {
-                if (file.type === 'video') {
-                    referenced_video_ids.add(file.id);
-                } else { // 'handle'
-                    referenced_handle_ids.add(file.id);
+    // Scan ALL playlists for references
+    const request = playlist_store.openCursor();
+    request.onsuccess = async function(e) {
+        const cursor = e.target.result;
+        if (cursor) {
+            const playlist = cursor.value;
+            if (playlist && playlist.files) {
+                for (const file of playlist.files) {
+                    if (file.type === 'video') {
+                        referenced_video_ids.add(file.id);
+                    } else { // 'handle'
+                        referenced_handle_ids.add(file.id);
+                    }
                 }
             }
-        }
+            cursor.continue();
+        } else {
+            // Cursor finished, now find orphans
+            const orphaned_video_keys = all_video_keys.filter(id => !referenced_video_ids.has(id));
+            for (const id of orphaned_video_keys) {
+                await add_to_playlist_by_id("video", id);
+            }
 
-        const orphaned_video_keys = all_video_keys.filter(id => !referenced_video_ids.has(id));
-        for (const id of orphaned_video_keys) {
-            await add_to_playlist_by_id("video", id);
-        }
-
-        const orphaned_handle_keys = all_handle_keys.filter(id => !referenced_handle_ids.has(id));
-        for (const id of orphaned_handle_keys) {
-            await add_to_playlist_by_id("handle", id);
+            const orphaned_handle_keys = all_handle_keys.filter(id => !referenced_handle_ids.has(id));
+            for (const id of orphaned_handle_keys) {
+                await add_to_playlist_by_id("handle", id);
+            }
         }
     };
 }
@@ -832,7 +838,7 @@ async function playlist_remove(e) {
             last_removed_index = first_removed_index;
         }
 
-        if (playList.childNodes.length == 0)
+        if (playList.childNodes.length == 0 && current_playlist_name === "default")
             await resurrect_orphaned_items();
 
         adjust_tool_visibility();

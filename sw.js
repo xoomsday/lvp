@@ -1,4 +1,4 @@
-var CACHE_SERIAL = '7';
+var CACHE_SERIAL = '1';
 var CACHE_BASE = 'lvp-cache-';
 var CACHE_NAME = CACHE_BASE + CACHE_SERIAL;
 
