@@ -13,6 +13,7 @@ var refocus;
 var scrollInterval;
 var current_playlist_name = "default";
 var currentMarks = [];
+var lastTime = -1;
 
 function add_video_refocus_listeners() {
     videoPlay.addEventListener('play', refocus);
@@ -430,6 +431,10 @@ async function initialize_all() {
     });
 
     videoPlay.addEventListener('pause', save_current_playback_info);
+
+    videoPlay.addEventListener('seeking', e => {
+        lastTime = -1;
+    });
 
     videoPlay.addEventListener('timeupdate', e => {
         timeupdate();
@@ -969,8 +974,10 @@ async function setPlaying(d, continue_playing) {
         videoPlay.playbackRate = lastSpeed;
 
         currentMarks = [];
+        lastTime = -1;
         get_video_marks(d.myId, d.myType).then(marks => {
             currentMarks = marks || [];
+            currentMarks.sort((a, b) => a - b);
         });
 
         if (continue_playing) {
@@ -1192,24 +1199,29 @@ function timeupdate() {
     } else {
         const time = videoPlay.currentTime;
 
-        if (videoPlay.myLoop) {
-            const nextMark = currentMarks.find(m => m > time + 0.1) || videoPlay.duration;
-            // Check if we are very close to or past the next mark
-            // Using a small buffer (0.2s) to prevent skipping over the mark
-            if (time >= nextMark - 0.2) {
-                const sorted = [...currentMarks].sort((a, b) => a - b);
-                let prev = 0;
-                for (let i = sorted.length - 1; i >= 0; i--) {
-                    if (sorted[i] < nextMark - 0.5) {
-                        prev = sorted[i];
-                        break;
-                    }
+        if (videoPlay.myLoop && lastTime !== -1 && time > lastTime) {
+            // Find if we crossed any mark.
+            // We use a small buffer (0.1s) to catch marks we just passed.
+            for (let i = 0; i < currentMarks.length; i++) {
+                const m = currentMarks[i];
+                if (m > lastTime && m <= time + 0.1) {
+                    let prev = (i > 0) ? currentMarks[i - 1] : 0;
+                    videoPlay.currentTime = prev;
+                    lastTime = prev;
+                    showABLabel(`Looping: ${toHHMMSS(prev)} - ${toHHMMSS(m)}`);
+                    return;
                 }
+            }
+            // Check end of video
+            if (time >= videoPlay.duration - 0.1 && lastTime < videoPlay.duration) {
+                let prev = (currentMarks.length > 0) ? currentMarks[currentMarks.length - 1] : 0;
                 videoPlay.currentTime = prev;
-                showABLabel(`Looping: ${toHHMMSS(prev)} - ${toHHMMSS(nextMark)}`);
-                return; // Exit to avoid updating label with old time
+                lastTime = prev;
+                showABLabel(`Looping: ${toHHMMSS(prev)} - End`);
+                return;
             }
         }
+        lastTime = time;
 
         var current = toHHMMSS(time);
         var total = toHHMMSS(videoPlay.duration);
@@ -1558,20 +1570,19 @@ async function videoPlayKey(e) {
         break;
     case 'P':
         const timePrev = videoPlay.currentTime;
-        const sorted = [...currentMarks].sort((a, b) => a - b);
-        let prev = 0;
-        for (let i = sorted.length - 1; i >= 0; i--) {
-            if (sorted[i] < timePrev - 2) {
-                prev = sorted[i];
+        let jumpPrev = 0;
+        for (let i = currentMarks.length - 1; i >= 0; i--) {
+            if (currentMarks[i] < timePrev - 2) {
+                jumpPrev = currentMarks[i];
                 break;
-            } else if (sorted[i] < timePrev - 0.1) {
+            } else if (currentMarks[i] < timePrev - 0.1) {
                 // If very close to current mark, go to the one before it
-                prev = (i > 0) ? sorted[i-1] : 0;
+                jumpPrev = (i > 0) ? currentMarks[i-1] : 0;
                 break;
             }
         }
-        videoPlay.currentTime = prev;
-        showABLabel("Jump to: " + toHHMMSS(prev));
+        videoPlay.currentTime = jumpPrev;
+        showABLabel("Jump to: " + toHHMMSS(jumpPrev));
         break;
     case '.':
         if (videoPlay.paused)
