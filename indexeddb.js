@@ -71,7 +71,13 @@ async function save_selected_files() {
                 var transaction = lvp_db.transaction(["videos", "file_handles"], "readwrite");
                 var videos_store = transaction.objectStore("videos");
                 var handles_store = transaction.objectStore("file_handles");
-                var put_request = videos_store.put({ "name": playlist_item.myFile.name, "file": playlist_item.myFile, "last_played_time": null, "last_playback_position": 0 });
+                var put_request = videos_store.put({
+                    "name": playlist_item.myFile.name,
+                    "file": playlist_item.myFile,
+                    "last_played_time": null,
+                    "last_playback_position": 0,
+                    "marks": playlist_item.myMarks || []
+                });
 
                 put_request.onsuccess = function(e) {
                     var new_id = e.target.result;
@@ -224,6 +230,55 @@ async function get_video_playback_info(id, type) {
         request.onerror = function(e) {
             console.log("Failed to get video playback info:" + e.target.error);
             resolve({ last_played_time: null, last_playback_position: 0 });
+        };
+    });
+}
+
+function update_video_marks(id, type, marks) {
+    if (!lvp_db || !id)
+        return;
+
+    var store_name = (type == "video") ? "videos" : "file_handles";
+    var transaction = lvp_db.transaction([store_name], "readwrite");
+    var store = transaction.objectStore(store_name);
+
+    var request = store.get(id);
+
+    request.onsuccess = function(e) {
+        var video = e.target.result;
+        if (video) {
+            video.marks = marks;
+            store.put(video);
+        }
+    };
+
+    request.onerror = function(e) {
+        console.log("Failed to update video marks:" + e.target.error);
+    };
+}
+
+async function get_video_marks(id, type) {
+    if (!lvp_db || !id)
+        return [];
+
+    return new Promise((resolve, reject) => {
+        var store_name = (type == "video") ? "videos" : "file_handles";
+        var transaction = lvp_db.transaction([store_name], "readonly");
+        var store = transaction.objectStore(store_name);
+        var request = store.get(id);
+
+        request.onsuccess = function(e) {
+            var video = e.target.result;
+            if (video) {
+                resolve(video.marks || []);
+            } else {
+                resolve([]);
+            }
+        };
+
+        request.onerror = function(e) {
+            console.log("Failed to get video marks:" + e.target.error);
+            resolve([]);
         };
     });
 }

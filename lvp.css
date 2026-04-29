@@ -46,6 +46,12 @@ div.labelstring {
     top: 80px;
     right: 20px;
 }
+#abLabel {
+    visibility: hidden;
+    position: absolute;
+    top: 140px;
+    right: 20px;
+}
 #titleLabel {
     visibility: hidden;
     display: inline-block;

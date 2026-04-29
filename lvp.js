@@ -12,6 +12,7 @@ var willEndAtTime;
 var refocus;
 var scrollInterval;
 var current_playlist_name = "default";
+var currentMarks = [];
 
 function add_video_refocus_listeners() {
     videoPlay.addEventListener('play', refocus);
@@ -73,7 +74,12 @@ async function open_files() {
         const promises = [];
 
         for (const handle of handles) {
-            const request = store.put({ "handle": handle, "last_played_time": null, "last_playback_position": 0 });
+            const request = store.put({
+                "handle": handle,
+                "last_played_time": null,
+                "last_playback_position": 0,
+                "marks": []
+            });
             promises.push(new Promise((resolve, reject) => {
                 request.onsuccess = function(e) {
                     add_to_playlist_by_id("handle", e.target.result).then(resolve);
@@ -314,6 +320,7 @@ async function initialize_all() {
     playListPane = document.getElementById("playlistpane");
     speedLabel = document.getElementById("speedLabel");
     loopLabel = document.getElementById("loopLabel");
+    abLabel = document.getElementById("abLabel");
     timeLabel = document.getElementById("timeLabel");
     aspectLabel = document.getElementById("aspectLabel");
     sizeLabel = document.getElementById("sizeLabel");
@@ -868,6 +875,11 @@ async function setPlaying(d, continue_playing) {
         videoPlay.setAttribute('src', URL.createObjectURL(d.myFile));
         videoPlay.playbackRate = lastSpeed;
 
+        currentMarks = [];
+        get_video_marks(d.myId, d.myType).then(marks => {
+            currentMarks = marks || [];
+        });
+
         if (continue_playing) {
             const playback_info = await get_video_playback_info(d.myId, d.myType);
             if (playback_info.last_playback_position > 0) {
@@ -932,6 +944,10 @@ function showPlaybackRate() {
 function showLoop() {
     var text = videoPlay.myLoop ? "Loop" : "No Loop";
     set_notification(loopLabel, text);
+}
+
+function showABLabel(text) {
+    set_notification(abLabel, text);
 }
 
 function showTitle() {
@@ -1034,6 +1050,13 @@ function show_info() {
     showTime();
     showAspect();
     showSize();
+
+    if (currentMarks && currentMarks.length > 0) {
+        const marksStr = currentMarks.map(m => toHHMMSS(m)).join(', ');
+        showABLabel("Marks: " + marksStr);
+    } else {
+        showABLabel("");
+    }
 }
 
 function toggle_info() {
@@ -1074,7 +1097,28 @@ function timeupdate() {
     if (videoPlay.readyState < 4) {
         timeLabel.textContent = '';
     } else {
-        var current = toHHMMSS(videoPlay.currentTime);
+        const time = videoPlay.currentTime;
+
+        if (videoPlay.myLoop) {
+            const nextMark = currentMarks.find(m => m > time + 0.1) || videoPlay.duration;
+            // Check if we are very close to or past the next mark
+            // Using a small buffer (0.2s) to prevent skipping over the mark
+            if (time >= nextMark - 0.2) {
+                const sorted = [...currentMarks].sort((a, b) => a - b);
+                let prev = 0;
+                for (let i = sorted.length - 1; i >= 0; i--) {
+                    if (sorted[i] < nextMark - 0.5) {
+                        prev = sorted[i];
+                        break;
+                    }
+                }
+                videoPlay.currentTime = prev;
+                showABLabel(`Looping: ${toHHMMSS(prev)} - ${toHHMMSS(nextMark)}`);
+                return; // Exit to avoid updating label with old time
+            }
+        }
+
+        var current = toHHMMSS(time);
         var total = toHHMMSS(videoPlay.duration);
         var remaining = ((videoPlay.duration - videoPlay.currentTime) /
                          videoPlay.playbackRate);
@@ -1367,14 +1411,70 @@ async function videoPlayKey(e) {
     case 'l':
         toggleLoop();
         break;
+    case 'r':
+        // Add mark
+        const timeAdd = videoPlay.currentTime;
+        if (!currentMarks.some(m => Math.abs(m - timeAdd) < 0.1)) {
+            currentMarks.push(timeAdd);
+            currentMarks.sort((a, b) => a - b);
+            update_video_marks(videoPlay.myPlaying.myId, videoPlay.myPlaying.myType, currentMarks);
+            showABLabel("Mark Set: " + toHHMMSS(timeAdd));
+        }
+        break;
+    case 'R':
+        // Delete mark
+        const threshold = 2;
+        const timeDel = videoPlay.currentTime;
+        let closestIndex = -1;
+        let minDiff = Infinity;
+
+        currentMarks.forEach((m, i) => {
+            const diff = Math.abs(m - timeDel);
+            if (diff < minDiff && diff < threshold) {
+                minDiff = diff;
+                closestIndex = i;
+            }
+        });
+
+        if (closestIndex !== -1) {
+            currentMarks.splice(closestIndex, 1);
+            update_video_marks(videoPlay.myPlaying.myId, videoPlay.myPlaying.myType, currentMarks);
+            showABLabel("Mark Deleted");
+        }
+        break;
     case 'n':
         await play_next(1);
+        break;
+    case 'N':
+        const timeNext = videoPlay.currentTime;
+        const next = currentMarks.find(m => m > timeNext + 0.1);
+        if (next !== undefined) {
+            videoPlay.currentTime = next;
+            showABLabel("Jump to: " + toHHMMSS(next));
+        }
         break;
     case 'o':
         open_files();
         break;
     case 'p':
         await play_next(-1);
+        break;
+    case 'P':
+        const timePrev = videoPlay.currentTime;
+        const sorted = [...currentMarks].sort((a, b) => a - b);
+        let prev = 0;
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            if (sorted[i] < timePrev - 2) {
+                prev = sorted[i];
+                break;
+            } else if (sorted[i] < timePrev - 0.1) {
+                // If very close to current mark, go to the one before it
+                prev = (i > 0) ? sorted[i-1] : 0;
+                break;
+            }
+        }
+        videoPlay.currentTime = prev;
+        showABLabel("Jump to: " + toHHMMSS(prev));
         break;
     case '.':
         if (videoPlay.paused)
@@ -1429,6 +1529,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
 
 window.addEventListener('beforeunload', () => {
     save_current_playback_info();
