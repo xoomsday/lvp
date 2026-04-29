@@ -50,68 +50,107 @@ async function save_selected_files() {
     if (!lvp_db)
         return;
 
+    var items_to_save = [];
     for (var d of playList.childNodes) {
-        if (d.classList.contains('selected')) {
-            if (d.mySaving.textContent == '✅')
-                continue;
+        if (d.classList.contains('selected') && d.mySaving.textContent != '✅') {
+            items_to_save.push(d);
+        }
+    }
 
-            d.mySaving.textContent = '⏳';
+    if (items_to_save.length === 0)
+        return;
 
-            if (!await ensure_file_access(d)) {
-                d.mySaving.textContent = '❗';
-                continue;
+    // Phase 1: Preparation (async operations outside transaction)
+    for (var d of items_to_save) {
+        d.mySaving.textContent = '⏳';
+        if (!await ensure_file_access(d) || !d.myFile) {
+            d.mySaving.textContent = '❗';
+        }
+    }
+
+    var ready_items = items_to_save.filter(d => d.mySaving.textContent === '⏳');
+    if (ready_items.length === 0)
+        return;
+
+    // Phase 2: Atomic Transaction
+    var transaction = lvp_db.transaction(["videos", "file_handles", "playlist"], "readwrite");
+    var videos_store = transaction.objectStore("videos");
+    var handles_store = transaction.objectStore("file_handles");
+    var playlist_store = transaction.objectStore("playlist");
+
+    var promotion_promises = ready_items.map(playlist_item => {
+        return new Promise((resolve, reject) => {
+            var put_request = videos_store.put({
+                "name": playlist_item.myFile.name,
+                "file": playlist_item.myFile,
+                "last_played_time": null,
+                "last_playback_position": 0,
+                "marks": playlist_item.myMarks || []
+            });
+            put_request.onsuccess = function(e) {
+                var new_id = e.target.result;
+                handles_store.delete(playlist_item.myId);
+                playlist_item.newId = new_id;
+                resolve();
+            };
+            put_request.onerror = reject;
+        });
+    });
+
+    try {
+        await Promise.all(promotion_promises);
+
+        // Update playlist in the SAME transaction
+        var playlist_files = [];
+        var focus_id = null;
+        for (var d of playList.childNodes) {
+            var id = (d.newId !== undefined) ? d.newId : d.myId;
+            var type = (d.newId !== undefined) ? "video" : d.myType;
+            if (d.classList.contains('focused')) {
+                focus_id = id;
             }
+            playlist_files.push({ "id": id, "type": type });
+        }
 
-            if (!d.myFile) {
-                d.mySaving.textContent = '❗';
-                continue;
-            }
+        playlist_store.put({
+            "name": current_playlist_name,
+            "files": playlist_files,
+            "focus": focus_id
+        });
 
-            (function(playlist_item) {
-                var transaction = lvp_db.transaction(["videos", "file_handles"], "readwrite");
-                var videos_store = transaction.objectStore("videos");
-                var handles_store = transaction.objectStore("file_handles");
-                var put_request = videos_store.put({
-                    "name": playlist_item.myFile.name,
-                    "file": playlist_item.myFile,
-                    "last_played_time": null,
-                    "last_playback_position": 0,
-                    "marks": playlist_item.myMarks || []
-                });
+        transaction.oncomplete = function() {
+            var refresh_transaction = lvp_db.transaction(["videos"], "readonly");
+            var refresh_store = refresh_transaction.objectStore("videos");
 
-                put_request.onsuccess = function(e) {
-                    var new_id = e.target.result;
-                    handles_store.delete(playlist_item.myId);
-                    playlist_item.myId = new_id;
-                    playlist_item.myType = "video";
-                    var filename = pretty_filename(playlist_item.myFile.name);
-                    var filesize = pretty_filesize(playlist_item.myFile.size);
-                    playlist_item.myName.textContent = `${filename} (${filesize})`;
-                    save_playlist(current_playlist_name);
-                };
+            for (var d of ready_items) {
+                d.myId = d.newId;
+                d.myType = "video";
+                delete d.newId;
+                var filename = pretty_filename(d.myFile.name);
+                var filesize = pretty_filesize(d.myFile.size);
+                d.myName.textContent = `${filename} (${filesize})`;
 
-                transaction.oncomplete = function() {
-                    var get_transaction = lvp_db.transaction(["videos"], "readonly");
-                    var get_store = get_transaction.objectStore("videos");
-                    var get_request = get_store.get(playlist_item.myId);
-
+                (function(item) {
+                    var get_request = refresh_store.get(item.myId);
                     get_request.onsuccess = function(e) {
-                        var record = e.target.result;
-                        if (record && record.file) {
-                            playlist_item.myFile = record.file;
-                            playlist_item.myHandle = null;
+                        if (e.target.result) {
+                            item.myFile = e.target.result.file;
+                            item.myHandle = null;
                         }
                     };
+                })(d);
+            }
 
-                    get_transaction.oncomplete = function() {
-                        playlist_item.mySaving.textContent = '✅';
-                    };
-                };
-
-                put_request.onerror = function(e) {
-                    playlist_item.mySaving.textContent = '❗';
-                };
-            })(d);
+            refresh_transaction.oncomplete = function() {
+                for (var d of ready_items) {
+                    d.mySaving.textContent = '✅';
+                }
+            };
+        };
+    } catch (e) {
+        transaction.abort();
+        for (var d of ready_items) {
+            d.mySaving.textContent = '❗';
         }
     }
 }

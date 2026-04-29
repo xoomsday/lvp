@@ -69,33 +69,61 @@ async function open_files() {
 
         const was_empty = playList.childNodes.length == 0;
 
-        var transaction = lvp_db.transaction(["file_handles"], "readwrite");
+        var transaction = lvp_db.transaction(["file_handles", "playlist"], "readwrite");
         var store = transaction.objectStore("file_handles");
-        const promises = [];
+        var playlist_store = transaction.objectStore("playlist");
 
-        for (const handle of handles) {
-            const request = store.put({
-                "handle": handle,
-                "last_played_time": null,
-                "last_playback_position": 0,
-                "marks": []
-            });
-            promises.push(new Promise((resolve, reject) => {
+        const new_ids = new Array(handles.length);
+        const put_promises = handles.map((handle, index) => {
+            return new Promise((resolve, reject) => {
+                const request = store.put({
+                    "handle": handle,
+                    "last_played_time": null,
+                    "last_playback_position": 0,
+                    "marks": []
+                });
                 request.onsuccess = function(e) {
-                    add_to_playlist_by_id("handle", e.target.result).then(resolve);
+                    new_ids[index] = e.target.result;
+                    resolve();
                 }
                 request.onerror = reject;
-            }));
+            });
+        });
+
+        await Promise.all(put_promises);
+
+        // Compute new playlist files
+        var playlist_files = [];
+        var focus_id = null;
+        for (var d of playList.childNodes) {
+            if (d.classList.contains('focused')) {
+                focus_id = d.myId;
+            }
+            playlist_files.push({ "id": d.myId, "type": d.myType });
         }
 
-        await Promise.all(promises);
-        save_playlist(current_playlist_name);
-        adjust_tool_visibility();
-
-        if (was_empty && playList.childNodes.length > 0) {
-            focused_item = playList.firstChild;
-            focused_item.classList.add('focused');
+        for (const id of new_ids) {
+            playlist_files.push({ "id": id, "type": "handle" });
         }
+
+        playlist_store.put({
+            "name": current_playlist_name,
+            "files": playlist_files,
+            "focus": focus_id
+        });
+
+        transaction.oncomplete = async function() {
+            for (let i = 0; i < handles.length; i++) {
+                await add_to_playlist(handles[i], false, new_ids[i], "handle");
+            }
+            adjust_tool_visibility();
+
+            if (was_empty && playList.childNodes.length > 0) {
+                focused_item = playList.firstChild;
+                focused_item.classList.add('focused');
+                save_playlist(current_playlist_name);
+            }
+        };
 
     } catch (e) {
         console.log(e);
@@ -216,27 +244,26 @@ async function playlist_rename() {
     }
 
     const oldName = current_playlist_name;
-    const playlistData = await new Promise((resolve) => {
-        var transaction = lvp_db.transaction(["playlist"], "readonly");
-        var store = transaction.objectStore("playlist");
-        var request = store.get(oldName);
-        request.onsuccess = (e) => resolve(e.target.result);
-    });
+    var transaction = lvp_db.transaction(["playlist"], "readwrite");
+    var store = transaction.objectStore("playlist");
+    var get_request = store.get(oldName);
 
-    if (playlistData) {
-        playlistData.name = newName;
-        await new Promise((resolve) => {
-            var transaction = lvp_db.transaction(["playlist"], "readwrite");
-            var store = transaction.objectStore("playlist");
+    get_request.onsuccess = function(e) {
+        var playlistData = e.target.result;
+        if (playlistData) {
+            playlistData.name = newName;
             store.put(playlistData);
             store.delete(oldName);
-            transaction.oncomplete = resolve;
-        });
+        }
+    };
+
+    transaction.oncomplete = async function() {
         current_playlist_name = newName;
         localStorage.setItem("last_playlist", newName);
         await refresh_playlist_selector();
-    }
+    };
 }
+
 
 async function playlist_delete() {
     if (current_playlist_name === "default") return;
@@ -277,40 +304,49 @@ async function playlist_move() {
         return;
     }
 
-    // Load target playlist
-    const targetPlaylistData = await new Promise((resolve) => {
-        var transaction = lvp_db.transaction(["playlist"], "readonly");
-        var store = transaction.objectStore("playlist");
-        var request = store.get(targetName);
-        request.onsuccess = (e) => resolve(e.target.result || { name: targetName, files: [] });
-    });
+    // Atomic Transaction for moving items
+    var transaction = lvp_db.transaction(["playlist"], "readwrite");
+    var store = transaction.objectStore("playlist");
 
-    // Add items to target playlist
-    for (var d of to_move) {
-        targetPlaylistData.files.push({ id: d.myId, type: d.myType });
-    }
-
-    // Save target playlist
-    await new Promise((resolve) => {
-        var transaction = lvp_db.transaction(["playlist"], "readwrite");
-        var store = transaction.objectStore("playlist");
+    var get_request = store.get(targetName);
+    get_request.onsuccess = function(e) {
+        var targetPlaylistData = e.target.result || { name: targetName, files: [] };
+        for (var d of to_move) {
+            targetPlaylistData.files.push({ id: d.myId, type: d.myType });
+        }
         store.put(targetPlaylistData);
-        transaction.oncomplete = resolve;
-    });
 
-    // Remove from current playlist
-    for (var d of to_move) {
-        if (d === focused_item) {
-            focused_item = null;
+        // Now update current playlist
+        var playlist_files = [];
+        var focus_id = null;
+        for (var d of playList.childNodes) {
+            if (!to_move.includes(d)) {
+                if (d.classList.contains('focused')) {
+                    focus_id = d.myId;
+                }
+                playlist_files.push({ "id": d.myId, "type": d.myType });
+            }
         }
-        if (d === last_clicked_item) {
-            last_clicked_item = null;
-        }
-        playList.removeChild(d);
-    }
+        store.put({
+            "name": current_playlist_name,
+            "files": playlist_files,
+            "focus": focus_id
+        });
+    };
 
-    save_playlist(current_playlist_name);
-    adjust_tool_visibility();
+    transaction.oncomplete = function() {
+        // Remove from current playlist UI
+        for (var d of to_move) {
+            if (d === focused_item) {
+                focused_item = null;
+            }
+            if (d === last_clicked_item) {
+                last_clicked_item = null;
+            }
+            playList.removeChild(d);
+        }
+        adjust_tool_visibility();
+    };
 }
 
 async function initialize_all() {
@@ -743,29 +779,58 @@ async function playlist_remove(e) {
 
     if (to_remove.length === 0) return;
 
+    // Phase 1: DB Transaction
+    var transaction = lvp_db.transaction(["videos", "file_handles", "playlist"], "readwrite");
+    var videos_store = transaction.objectStore("videos");
+    var handles_store = transaction.objectStore("file_handles");
+    var playlist_store = transaction.objectStore("playlist");
+
     for (var d of to_remove) {
-        if (d === focused_item) {
-            focused_item = null;
-        }
-        remove_from_db(d.myId, d.myType);
-        playList.removeChild(d);
-        if (videoPlay.myPlaying === d) {
-            videoPlay.pause();
-            videoPlay.removeAttribute('src');
-            videoPlay.load();
-            videoPlay.myPlaying = null;
+        var store = (d.myType == "video") ? videos_store : handles_store;
+        store.delete(d.myId);
+    }
+
+    // Compute new playlist
+    var playlist_files = [];
+    var focus_id = null;
+    for (var d of playList.childNodes) {
+        if (!to_remove.includes(d)) {
+            if (d.classList.contains('focused')) {
+                focus_id = d.myId;
+            }
+            playlist_files.push({ "id": d.myId, "type": d.myType });
         }
     }
 
-    if (focused_item === null) {
-        last_removed_index = first_removed_index;
-    }
+    playlist_store.put({
+        "name": current_playlist_name,
+        "files": playlist_files,
+        "focus": focus_id
+    });
 
-    if (playList.childNodes.length == 0)
-        await resurrect_orphaned_items();
+    transaction.oncomplete = async function() {
+        for (var d of to_remove) {
+            if (d === focused_item) {
+                focused_item = null;
+            }
+            playList.removeChild(d);
+            if (videoPlay.myPlaying === d) {
+                videoPlay.pause();
+                videoPlay.removeAttribute('src');
+                videoPlay.load();
+                videoPlay.myPlaying = null;
+            }
+        }
 
-    adjust_tool_visibility();
-    save_playlist(current_playlist_name);
+        if (focused_item === null) {
+            last_removed_index = first_removed_index;
+        }
+
+        if (playList.childNodes.length == 0)
+            await resurrect_orphaned_items();
+
+        adjust_tool_visibility();
+    };
 }
 
 function adjust_tool_visibility() {
