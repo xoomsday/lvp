@@ -145,6 +145,7 @@ async function save_selected_files() {
                 for (var d of ready_items) {
                     d.mySaving.textContent = '✅';
                 }
+                adjust_tool_visibility();
             };
         };
     } catch (e) {

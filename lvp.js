@@ -712,6 +712,7 @@ function playlist_item_clicked(e) {
         }
         last_clicked_item = clicked_item;
     }
+    adjust_tool_visibility();
 }
 
 function get_all_keys(store) {
@@ -835,11 +836,38 @@ async function playlist_remove(e) {
 
 function adjust_tool_visibility() {
     var tools = document.getElementById('tools');
-    var new_visibility =
-        (playList.childNodes.length == 0) ? 'hidden' : 'visible';
+    var has_items = (playList.childNodes.length > 0);
+    var new_visibility = has_items ? 'visible' : 'hidden';
+
     for (var tool of tools.childNodes) {
-        if (tool.classList && !tool.classList.contains('alwaysshown'))
+        if (tool.classList && !tool.classList.contains('alwaysshown')) {
             tool.style.visibility = new_visibility;
+        }
+    }
+
+    if (has_items) {
+        var has_selection = false;
+        var has_savable = false;
+        for (var child of playList.childNodes) {
+            if (child.nodeType === 1 && child.classList.contains('selected')) {
+                has_selection = true;
+                if (child.myType === 'handle') {
+                    has_savable = true;
+                }
+            }
+        }
+
+        const updateState = (id, enabled) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.opacity = enabled ? "1.0" : "0.3";
+                el.style.pointerEvents = enabled ? "auto" : "none";
+            }
+        };
+
+        updateState('moveTool', has_selection);
+        updateState('removeTool', has_selection);
+        updateState('saveTool', has_savable);
     }
 }
 
@@ -1270,6 +1298,7 @@ async function playListKey(e) {
             if (playList.childNodes.length > 0) {
                 last_clicked_item = playList.lastChild;
             }
+            adjust_tool_visibility();
         }
         return;
     case 'Escape':
@@ -1278,6 +1307,7 @@ async function playListKey(e) {
             child.classList.remove('selected');
         }
         last_clicked_item = null;
+        adjust_tool_visibility();
         return;
     case 'o':
         open_files();
@@ -1399,6 +1429,7 @@ async function playListKey(e) {
             focused_item.classList.toggle('selected');
             last_clicked_item = focused_item;
             last_removed_index = -1;
+            adjust_tool_visibility();
         }
         return; // No focus change
 
@@ -1426,6 +1457,7 @@ async function playListKey(e) {
             for (var i = start; i <= end; i++) {
                 children[i].classList.add('selected');
             }
+            adjust_tool_visibility();
         }
 
         if (new_focus !== focused_item) {
