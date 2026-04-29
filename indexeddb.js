@@ -73,6 +73,16 @@ async function save_selected_files() {
         return;
 
     // Phase 2: Atomic Transaction
+    // Capture the state of ALL items in the current playlist BEFORE async promotion.
+    // This prevents losing references if the user switches playlists during save.
+    const playlist_items_capture = Array.from(playList.childNodes).map(d => ({
+        element: d,
+        id: d.myId,
+        type: d.myType,
+        is_focused: d.classList.contains('focused')
+    }));
+    const saving_playlist_name = current_playlist_name;
+
     var transaction = lvp_db.transaction(["videos", "file_handles", "playlist"], "readwrite");
     var videos_store = transaction.objectStore("videos");
     var handles_store = transaction.objectStore("file_handles");
@@ -103,17 +113,17 @@ async function save_selected_files() {
         // Update playlist in the SAME transaction
         var playlist_files = [];
         var focus_id = null;
-        for (var d of playList.childNodes) {
-            var id = (d.newId !== undefined) ? d.newId : d.myId;
-            var type = (d.newId !== undefined) ? "video" : d.myType;
-            if (d.classList.contains('focused')) {
+        for (var item of playlist_items_capture) {
+            var id = (item.element.newId !== undefined) ? item.element.newId : item.id;
+            var type = (item.element.newId !== undefined) ? "video" : item.type;
+            if (item.is_focused) {
                 focus_id = id;
             }
             playlist_files.push({ "id": id, "type": type });
         }
 
         playlist_store.put({
-            "name": current_playlist_name,
+            "name": saving_playlist_name,
             "files": playlist_files,
             "focus": focus_id
         });
