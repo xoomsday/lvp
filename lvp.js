@@ -14,6 +14,7 @@ var scrollInterval;
 var current_playlist_name = "default";
 var currentMarks = [];
 var lastTime = -1;
+var items_to_move = [];
 
 function add_video_refocus_listeners() {
     videoPlay.addEventListener('play', refocus);
@@ -277,33 +278,21 @@ async function playlist_delete() {
     await load_playlist_by_name("default");
 }
 
-async function playlist_move() {
-    var to_move = [];
-    var children = Array.from(playList.childNodes);
-    for (var i = 0; i < children.length; i++) {
-        var d = children[i];
-        if (d.classList.contains('selected')) {
-            to_move.push(d);
-        }
+function toggle_move_modal(force_hide) {
+    const modal = document.getElementById('move-modal');
+    if (force_hide || modal.classList.contains('is-visible')) {
+        modal.classList.remove('is-visible');
+    } else {
+        modal.classList.add('is-visible');
     }
+}
 
-    if (to_move.length === 0) return;
-
-    const playlists = await get_all_playlists();
-    const otherPlaylists = playlists.filter(name => name !== current_playlist_name);
-
-    if (otherPlaylists.length === 0) {
-        alert("Create another playlist first to move videos.");
-        return;
-    }
-
-    let targetName = prompt("Move to playlist:\n" + otherPlaylists.join("\n"), otherPlaylists[0]);
+async function execute_move() {
+    const selector = document.getElementById("movePlaylistSelect");
+    const targetName = selector.value;
     if (!targetName) return;
-    targetName = targetName.trim();
-    if (!playlists.includes(targetName) || targetName === current_playlist_name) {
-        alert("Invalid playlist name.");
-        return;
-    }
+
+    toggle_move_modal(true);
 
     // Atomic Transaction for moving items
     var transaction = lvp_db.transaction(["playlist"], "readwrite");
@@ -312,7 +301,7 @@ async function playlist_move() {
     var get_request = store.get(targetName);
     get_request.onsuccess = function(e) {
         var targetPlaylistData = e.target.result || { name: targetName, files: [] };
-        for (var d of to_move) {
+        for (var d of items_to_move) {
             targetPlaylistData.files.push({ id: d.myId, type: d.myType });
         }
         store.put(targetPlaylistData);
@@ -321,7 +310,7 @@ async function playlist_move() {
         var playlist_files = [];
         var focus_id = null;
         for (var d of playList.childNodes) {
-            if (!to_move.includes(d)) {
+            if (!items_to_move.includes(d)) {
                 if (d.classList.contains('focused')) {
                     focus_id = d.myId;
                 }
@@ -337,7 +326,7 @@ async function playlist_move() {
 
     transaction.oncomplete = function() {
         // Remove from current playlist UI
-        for (var d of to_move) {
+        for (var d of items_to_move) {
             if (d === focused_item) {
                 focused_item = null;
             }
@@ -346,8 +335,41 @@ async function playlist_move() {
             }
             playList.removeChild(d);
         }
+        items_to_move = [];
         adjust_tool_visibility();
     };
+}
+
+async function playlist_move() {
+    items_to_move = [];
+    var children = Array.from(playList.childNodes);
+    for (var i = 0; i < children.length; i++) {
+        var d = children[i];
+        if (d.classList.contains('selected')) {
+            items_to_move.push(d);
+        }
+    }
+
+    if (items_to_move.length === 0) return;
+
+    const playlists = await get_all_playlists();
+    const otherPlaylists = playlists.filter(name => name !== current_playlist_name);
+
+    if (otherPlaylists.length === 0) {
+        alert("Create another playlist first to move videos.");
+        return;
+    }
+
+    const selector = document.getElementById("movePlaylistSelect");
+    selector.innerHTML = "";
+    for (const name of otherPlaylists) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        selector.appendChild(option);
+    }
+
+    toggle_move_modal(false);
 }
 
 async function initialize_all() {
@@ -1633,13 +1655,19 @@ function toggle_help_modal(force_hide) {
 window.addEventListener('DOMContentLoaded', () => {
     initialize_all();
 
-    const modal = document.getElementById('help-modal');
-    const close_button = document.querySelector('.close-button');
-
-    close_button.addEventListener('click', () => toggle_help_modal(true));
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
+    const helpModal = document.getElementById('help-modal');
+    const helpCloseButton = helpModal.querySelector('.close-button');
+    helpCloseButton.addEventListener('click', () => toggle_help_modal(true));
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
             toggle_help_modal(true);
+        }
+    });
+
+    const moveModal = document.getElementById('move-modal');
+    moveModal.addEventListener('click', (e) => {
+        if (e.target === moveModal) {
+            toggle_move_modal(true);
         }
     });
 });

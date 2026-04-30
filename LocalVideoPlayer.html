@@ -41,7 +41,7 @@
                     font-size: 8pt;
                     right: 2px; top: 0; opacity: 0.3"
              class="alwaysshown"
-             id="dateStamp">20260430.0850</div>
+             id="dateStamp">20260430.1545</div>
         <div id="playlist-controls" class="alwaysshown"
              style="display: inline-block; font-size: 14pt;
                     vertical-align: middle; margin-left: 10px;">
@@ -68,6 +68,20 @@
       <div id="timeLabel" class="labelstring"></div>
       <div id="aspectLabel" class="labelstring"></div>
       <div id="sizeLabel" class="labelstring"></div>
+    </div>
+
+    <div id="move-modal" class="modal">
+      <div class="modal-content" style="max-width: 400px;">
+        <span class="close-button" onclick="toggle_move_modal(true)">&times;</span>
+        <h2 style="margin-top: 0;">Move Tracks</h2>
+        <p>Move selected tracks to:</p>
+        <select id="movePlaylistSelect" style="width: 100%; margin-bottom: 20px;">
+        </select>
+        <div style="text-align: right;">
+          <button onclick="toggle_move_modal(true)">Cancel</button>
+          <button onclick="execute_move()" style="margin-left: 10px;">Move</button>
+        </div>
+      </div>
     </div>
 
     <div id="help-modal" class="modal">
