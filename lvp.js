@@ -13,6 +13,7 @@ var refocus;
 var scrollInterval;
 var current_playlist_name = "default";
 var currentMarks = [];
+var handledTracks = new WeakSet();
 var lastTime = -1;
 var items_to_move = [];
 
@@ -374,6 +375,13 @@ async function playlist_move() {
 
 async function initialize_all() {
     videoPlay = document.getElementById("video");
+    if (videoPlay.textTracks) {
+        videoPlay.textTracks.addEventListener('addtrack', (e) => {
+            if (e.track.kind === 'chapters') {
+                handleChapterTrack(e.track);
+            }
+        });
+    }
     videoPane = document.getElementById("videopane");
     playList = document.getElementById("playlist");
     playListPane = document.getElementById("playlistpane");
@@ -464,6 +472,13 @@ async function initialize_all() {
 
     videoPlay.addEventListener('loadedmetadata', function(e) {
         setAspectSizeInfo();
+        if (videoPlay.textTracks) {
+            for (let i = 0; i < videoPlay.textTracks.length; i++) {
+                if (videoPlay.textTracks[i].kind === 'chapters') {
+                    handleChapterTrack(videoPlay.textTracks[i]);
+                }
+            }
+        }
     });
 
     playListPane.addEventListener('keydown', function(e) {
@@ -1003,10 +1018,9 @@ async function setPlaying(d, continue_playing) {
 
         currentMarks = [];
         lastTime = -1;
-        get_video_marks(d.myId, d.myType).then(marks => {
-            currentMarks = marks || [];
-            currentMarks.sort((a, b) => a - b);
-        });
+        const marks = await get_video_marks(d.myId, d.myType);
+        currentMarks = marks || [];
+        currentMarks.sort((a, b) => a - b);
 
         if (continue_playing) {
             const playback_info = await get_video_playback_info(d.myId, d.myType);
@@ -1161,6 +1175,34 @@ function setAspectSizeInfo() {
 
     sizeLabel.textContent =
         `${videoPlay.videoWidth} × ${videoPlay.videoHeight} (${ratio})`;
+}
+
+function handleChapterTrack(track) {
+    if (handledTracks.has(track)) return;
+    handledTracks.add(track);
+
+    track.mode = 'hidden';
+
+    const extract = () => {
+        if (!track.cues) return;
+        let changed = false;
+        for (let i = 0; i < track.cues.length; i++) {
+            const cue = track.cues[i];
+            if (!currentMarks.some(m => Math.abs(m - cue.startTime) < 0.1)) {
+                currentMarks.push(cue.startTime);
+                changed = true;
+            }
+        }
+        if (changed) {
+            currentMarks.sort((a, b) => a - b);
+            if (videoPlay.myPlaying) {
+                update_video_marks(videoPlay.myPlaying.myId, videoPlay.myPlaying.myType, currentMarks);
+            }
+        }
+    };
+
+    track.addEventListener('cuechange', extract);
+    extract();
 }
 
 function showAspect() {
