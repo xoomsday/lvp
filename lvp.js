@@ -436,7 +436,6 @@ async function initialize_all() {
     }
 
     adjust_tool_visibility();
-    setApplicationTitle("");
 
     videoPlay.style.objectFit = 'contain';
     videoPlay.addEventListener('ended', async function(e) {
@@ -956,6 +955,7 @@ function showVideoPane(please) {
         if (document.fullscreenElement)
             document.exitFullscreen();
         playListPane.focus();
+        setApplicationTitle("");
     }
 }
 
@@ -985,10 +985,9 @@ async function play_through(at, continue_playing) {
 }
 
 function setApplicationTitle(title) {
-    var titleElement = document.getElementById("documentTitle");
     if (title == "")
         title = "Local Video Player";
-    titleElement.textContent = title;
+    document.title = title;
 }
 
 async function ensure_file_access(item) {
@@ -1672,7 +1671,6 @@ async function videoPlayKey(e) {
         remove_video_refocus_listeners();
         videoPlay.pause();
         showVideoPane(false);
-        setApplicationTitle("");
         save_playlist(current_playlist_name);
         break;
     default:
