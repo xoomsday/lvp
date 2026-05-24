@@ -1670,7 +1670,10 @@ async function videoPlayKey(e) {
         }
         remove_video_refocus_listeners();
         videoPlay.pause();
+        videoPlay.removeAttribute('src'); // Clear the source
+        videoPlay.load(); // Reload the element to reset state
         showVideoPane(false);
+        videoPlay.myPlaying = null; // Disassociate player from the item
         save_playlist(current_playlist_name);
         break;
     default:
