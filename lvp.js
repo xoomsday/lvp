@@ -459,6 +459,14 @@ async function initialize_all() {
         videoPlayKey(e);
     });
 
+    document.addEventListener('fullscreenchange', function() {
+        if (document.fullscreenElement === videoPlay) {
+            document.exitFullscreen().then(() => {
+                videoPane.requestFullscreen();
+            });
+        }
+    });
+
     videoPlay.addEventListener('pause', save_current_playback_info);
 
     videoPlay.addEventListener('seeking', e => {
